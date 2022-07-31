@@ -110,6 +110,15 @@ mod tests {
             };
 
             let result = add(five, ten);
+
+            !-/*5;
+            5 < 10 > 5;
+
+            if (5 < 10) {
+                return true;
+            } else {
+                return false;
+            }
         "#;
 
         let expected = vec![
@@ -154,6 +163,38 @@ mod tests {
             Token::new(TokenType::Rparen, None),
             Token::new(TokenType::Semicolon, None),
             //5
+            Token::new(TokenType::Invert, None),
+            Token::new(TokenType::Minus, None),
+            Token::new(TokenType::Slash, None),
+            Token::new(TokenType::Asterisk, None),
+            Token::new(TokenType::Int, Some("5")),
+            Token::new(TokenType::Semicolon, None),
+            //6
+            Token::new(TokenType::Int, Some("5")),
+            Token::new(TokenType::Lt, None),
+            Token::new(TokenType::Int, Some("10")),
+            Token::new(TokenType::Gt, None),
+            Token::new(TokenType::Int, Some("5")),
+            Token::new(TokenType::Semicolon, None),
+            //7
+            Token::new(TokenType::If, None),
+            Token::new(TokenType::Lparen, None),
+            Token::new(TokenType::Int, Some("5")),
+            Token::new(TokenType::Lt, None),
+            Token::new(TokenType::Int, Some("10")),
+            Token::new(TokenType::Rparen, None),
+            Token::new(TokenType::Lbrace, None),
+            Token::new(TokenType::Return, None),
+            Token::new(TokenType::True, None),
+            Token::new(TokenType::Semicolon, None),
+            Token::new(TokenType::Rbrace, None),
+            Token::new(TokenType::Else, None),
+            Token::new(TokenType::Lbrace, None),
+            Token::new(TokenType::Return, None),
+            Token::new(TokenType::False, None),
+            Token::new(TokenType::Semicolon, None),
+            Token::new(TokenType::Rbrace, None),
+            //8
             Token::new(TokenType::Eof, None),
         ];
 
