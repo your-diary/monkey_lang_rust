@@ -1,0 +1,7 @@
+レクサー(lexer)は、ソースコードをトークンに分ける(字句解析(lexical analysis)を行う)
+
+
+
+AST(abstract syntax tree; 抽象構文木)
+
+
