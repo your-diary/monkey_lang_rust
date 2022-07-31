@@ -1,4 +1,5 @@
 use super::token::{self, Token, TokenType};
+use super::util;
 
 pub struct Lexer {
     input: Vec<char>,
@@ -37,7 +38,7 @@ impl Lexer {
 
     pub fn get_identifier(&mut self) -> String {
         let position = self.position;
-        while is_letter(self.ch) {
+        while util::is_letter(self.ch) {
             self.read_next_char();
         }
         self.input[position..self.position].iter().collect()
@@ -53,36 +54,20 @@ impl Lexer {
 
     pub fn get_next_token(&mut self) -> Token {
         self.eat_whitespace();
-        let ret = match self.ch {
-            '\0' => Token::new(TokenType::Eof, None),
-            '=' => Token::new(TokenType::Assign, None),
-            '+' => Token::new(TokenType::Plus, None),
-            ',' => Token::new(TokenType::Comma, None),
-            ';' => Token::new(TokenType::Semicolon, None),
-            '(' => Token::new(TokenType::Lparen, None),
-            ')' => Token::new(TokenType::Rparen, None),
-            '{' => Token::new(TokenType::Lbrace, None),
-            '}' => Token::new(TokenType::Rbrace, None),
-            c if is_letter(c) => {
-                let identifier = self.get_identifier();
-                //early return as `get_identifier()` calls `read_next_char()` internally
-                return match token::lookup_token_type(&identifier) {
-                    TokenType::Ident => Token::new(TokenType::Ident, Some(&identifier)),
-                    t => Token::new(t, None),
-                };
+        let sequence: String = match self.ch {
+            c if util::is_letter(c) => self.get_identifier(),
+            c if c.is_ascii_digit() => self.get_number(),
+            c => {
+                self.read_next_char(); //moves to the next position as `get_identifier()` does
+                c.to_string()
             }
-            c if c.is_ascii_digit() => {
-                return Token::new(TokenType::Int, Some(&self.get_number()));
-            }
-            _ => Token::new(TokenType::Illegal, None),
         };
-        self.read_next_char();
-        ret
+        match token::lookup_token_type(&sequence) {
+            TokenType::Ident => Token::new(TokenType::Ident, Some(&sequence)),
+            TokenType::Int => Token::new(TokenType::Int, Some(&sequence)),
+            t => Token::new(t, None),
+        }
     }
-}
-
-fn is_letter(c: char) -> bool {
-    c.is_ascii_alphabetic() || (c == '_')
 }
 
 #[cfg(test)]

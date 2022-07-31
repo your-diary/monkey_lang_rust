@@ -1,3 +1,5 @@
+use super::util;
+
 #[derive(Debug, PartialEq)]
 pub struct Token {
     tp: TokenType, //`type` is a reverved word
@@ -31,31 +33,22 @@ pub enum TokenType {
     Let,
 }
 
-impl TokenType {
-    pub fn value(&self) -> &str {
-        match self {
-            TokenType::Illegal => "ILLEGAL",
-            TokenType::Eof => "EOF",
-            TokenType::Ident => "IDENT",
-            TokenType::Int => "INT",
-            TokenType::Assign => "=",
-            TokenType::Plus => "+",
-            TokenType::Comma => ",",
-            TokenType::Semicolon => ";",
-            TokenType::Lparen => "(",
-            TokenType::Rparen => ")",
-            TokenType::Lbrace => "{",
-            TokenType::Rbrace => "}",
-            TokenType::Function => "FUNCTION",
-            TokenType::Let => "LET",
-        }
-    }
-}
-
-pub fn lookup_token_type(identifier: &str) -> TokenType {
-    match identifier {
-        "let" => TokenType::Let,
+pub fn lookup_token_type(sequence: &str) -> TokenType {
+    let first_char = sequence.chars().next().unwrap();
+    match sequence {
+        "\0" => TokenType::Eof,
+        "=" => TokenType::Assign,
+        "+" => TokenType::Plus,
+        "," => TokenType::Comma,
+        ";" => TokenType::Semicolon,
+        "(" => TokenType::Lparen,
+        ")" => TokenType::Rparen,
+        "{" => TokenType::Lbrace,
+        "}" => TokenType::Rbrace,
         "fn" => TokenType::Function,
-        _ => TokenType::Ident,
+        "let" => TokenType::Let,
+        _ if util::is_letter(first_char) => TokenType::Ident,
+        _ if first_char.is_ascii_digit() => TokenType::Int,
+        _ => TokenType::Illegal,
     }
 }
