@@ -30,6 +30,15 @@ impl Lexer {
         self.read_position += 1;
     }
 
+    //like `read_next_char()` but immutable and instead returns the next character
+    pub fn peek_next_char(&self) -> char {
+        if (self.read_position >= self.input.len()) {
+            '\0'
+        } else {
+            self.input[self.read_position]
+        }
+    }
+
     fn eat_whitespace(&mut self) {
         while (self.ch.is_ascii_whitespace()) {
             self.read_next_char();
@@ -58,8 +67,27 @@ impl Lexer {
             c if util::is_letter(c) => self.get_identifier(),
             c if c.is_ascii_digit() => self.get_number(),
             c => {
+                let ret = match c {
+                    '=' => {
+                        if (self.peek_next_char() == '=') {
+                            self.read_next_char();
+                            "==".to_string()
+                        } else {
+                            "=".to_string()
+                        }
+                    }
+                    '!' => {
+                        if (self.peek_next_char() == '=') {
+                            self.read_next_char();
+                            "!=".to_string()
+                        } else {
+                            "!".to_string()
+                        }
+                    }
+                    c => c.to_string(),
+                };
                 self.read_next_char(); //moves to the next position as `get_identifier()` does
-                c.to_string()
+                ret
             }
         };
         match token::lookup_token_type(&sequence) {
@@ -119,6 +147,9 @@ mod tests {
             } else {
                 return false;
             }
+
+            10 ==10;
+            10 != 9;
         "#;
 
         let expected = vec![
@@ -195,6 +226,15 @@ mod tests {
             Token::new(TokenType::Semicolon, None),
             Token::new(TokenType::Rbrace, None),
             //8
+            Token::new(TokenType::Int, Some("10")),
+            Token::new(TokenType::Eq, None),
+            Token::new(TokenType::Int, Some("10")),
+            Token::new(TokenType::Semicolon, None),
+            Token::new(TokenType::Int, Some("10")),
+            Token::new(TokenType::NotEq, None),
+            Token::new(TokenType::Int, Some("9")),
+            Token::new(TokenType::Semicolon, None),
+            //9
             Token::new(TokenType::Eof, None),
         ];
 
