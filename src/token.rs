@@ -1,6 +1,6 @@
 #[derive(Debug, PartialEq)]
 pub struct Token {
-    tp: TokenType,
+    tp: TokenType, //`type` is a reverved word
     literal: Option<String>,
 }
 
@@ -52,8 +52,8 @@ impl TokenType {
     }
 }
 
-pub fn lookup_token_type(s: &str) -> TokenType {
-    match s {
+pub fn lookup_token_type(identifier: &str) -> TokenType {
+    match identifier {
         "let" => TokenType::Let,
         "fn" => TokenType::Function,
         _ => TokenType::Ident,

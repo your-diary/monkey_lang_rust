@@ -2,9 +2,9 @@ use super::token::{self, Token, TokenType};
 
 pub struct Lexer {
     input: Vec<char>,
-    position: usize,
-    read_position: usize,
-    ch: char,
+    position: usize,      //last read position
+    read_position: usize, //next character position (always `position + 1`)
+    ch: char,             //last read character
 }
 
 impl Lexer {
@@ -22,33 +22,33 @@ impl Lexer {
     pub fn read_next_char(&mut self) {
         if (self.read_position >= self.input.len()) {
             self.ch = '\0';
-        } else {
-            self.ch = self.input[self.read_position];
+            return;
         }
+        self.ch = self.input[self.read_position];
         self.position = self.read_position;
         self.read_position += 1;
     }
 
     fn eat_whitespace(&mut self) {
-        while ((self.ch == ' ') || (self.ch == '\t') || (self.ch == '\n') || (self.ch == '\r')) {
+        while (self.ch.is_ascii_whitespace()) {
             self.read_next_char();
         }
     }
 
     pub fn get_identifier(&mut self) -> String {
-        let p = self.position;
+        let position = self.position;
         while is_letter(self.ch) {
             self.read_next_char();
         }
-        self.input[p..self.position].iter().collect()
+        self.input[position..self.position].iter().collect()
     }
 
     pub fn get_number(&mut self) -> String {
-        let p = self.position;
+        let position = self.position;
         while (self.ch.is_ascii_digit()) {
             self.read_next_char();
         }
-        self.input[p..self.position].iter().collect()
+        self.input[position..self.position].iter().collect()
     }
 
     pub fn get_next_token(&mut self) -> Token {
@@ -56,11 +56,11 @@ impl Lexer {
         let ret = match self.ch {
             '\0' => Token::new(TokenType::Eof, None),
             '=' => Token::new(TokenType::Assign, None),
+            '+' => Token::new(TokenType::Plus, None),
+            ',' => Token::new(TokenType::Comma, None),
             ';' => Token::new(TokenType::Semicolon, None),
             '(' => Token::new(TokenType::Lparen, None),
             ')' => Token::new(TokenType::Rparen, None),
-            ',' => Token::new(TokenType::Comma, None),
-            '+' => Token::new(TokenType::Plus, None),
             '{' => Token::new(TokenType::Lbrace, None),
             '}' => Token::new(TokenType::Rbrace, None),
             c if is_letter(c) => {
@@ -72,8 +72,7 @@ impl Lexer {
                 };
             }
             c if c.is_ascii_digit() => {
-                let s = self.get_number();
-                return Token::new(TokenType::Int, Some(&s));
+                return Token::new(TokenType::Int, Some(&self.get_number()));
             }
             _ => Token::new(TokenType::Illegal, None),
         };
