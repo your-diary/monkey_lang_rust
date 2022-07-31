@@ -13,6 +13,9 @@ impl Token {
             literal: literal.map(String::from),
         }
     }
+    pub fn tp(&self) -> &TokenType {
+        &self.tp
+    }
 }
 
 #[derive(Debug, PartialEq)]

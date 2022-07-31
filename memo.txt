@@ -5,3 +5,5 @@
 AST(abstract syntax tree; 抽象構文木)
 
 
+REPL(read eval print loop): 対話モードのこと(入力を読み、評価し、結果を出力し、再度入力を読み、と繰り返す)
+
