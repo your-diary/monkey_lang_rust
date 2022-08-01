@@ -1,18 +1,21 @@
+use std::any::Any;
+
 use super::token::Token;
 
 /*-------------------------------------*/
 
-trait Node {
+pub trait Node {
     fn get_literal(&self) -> Option<String>;
+    fn as_any(&self) -> &dyn Any;
 }
 
-trait Statement: Node {}
+pub trait Statement: Node {}
 
-trait Expression: Node {}
+pub trait Expression: Node {}
 
 /*-------------------------------------*/
 
-struct Root {
+pub struct Root {
     statements: Vec<Box<dyn Statement>>,
 }
 
@@ -24,11 +27,25 @@ impl Node for Root {
             None
         }
     }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl Root {
+    pub fn new() -> Self {
+        Root {
+            statements: Vec::new(),
+        }
+    }
+    pub fn statements(&self) -> &Vec<Box<dyn Statement>> {
+        &self.statements
+    }
 }
 
 /*-------------------------------------*/
 
-struct Identifier {
+pub struct Identifier {
     token: Token,
     value: String,
 }
@@ -37,13 +54,25 @@ impl Node for Identifier {
     fn get_literal(&self) -> Option<String> {
         self.token.literal().clone()
     }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl Expression for Identifier {}
 
+impl Identifier {
+    pub fn token(&self) -> &Token {
+        &self.token
+    }
+    pub fn value(&self) -> &str {
+        &self.value
+    }
+}
+
 /*-------------------------------------*/
 
-struct LetStatement {
+pub struct LetStatement {
     token: Token,
     left: Identifier,
     right: Box<dyn Expression>,
@@ -53,8 +82,23 @@ impl Node for LetStatement {
     fn get_literal(&self) -> Option<String> {
         self.token.literal().clone()
     }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl Statement for LetStatement {}
+
+impl LetStatement {
+    pub fn token(&self) -> &Token {
+        &self.token
+    }
+    pub fn left(&self) -> &Identifier {
+        &self.left
+    }
+    pub fn right(&self) -> &dyn Expression {
+        self.right.as_ref()
+    }
+}
 
 /*-------------------------------------*/
