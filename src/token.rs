@@ -1,6 +1,6 @@
 use super::util;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     tp: TokenType, //`type` is a reverved word
     literal: Option<String>,
@@ -16,9 +16,12 @@ impl Token {
     pub fn tp(&self) -> &TokenType {
         &self.tp
     }
+    pub fn literal(&self) -> &Option<String> {
+        &self.literal
+    }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     Illegal,
     Eof,

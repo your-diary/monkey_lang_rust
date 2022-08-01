@@ -1,9 +1,20 @@
 レクサー(lexer)は、ソースコードをトークンに分ける(字句解析(lexical analysis)を行う)
+パーサー(parser)は、ソースコードやトークンからAST(abstract syntax tree; 抽象構文木)を生成する(構文解析(syntactic analysis)を行う)
+
+yacc, bison, ANTLRといった、パーサーを生成するツールも存在する
+そういったツールの多くは、EBNF(|ebnf|)を元に、パーサー用のプログラム(例えばC言語プログラム)を生成する
 
 
 
-AST(abstract syntax tree; 抽象構文木)
 
 
-REPL(read eval print loop): 対話モードのこと(入力を読み、評価し、結果を出力し、再度入力を読み、と繰り返す)
+REPL(read eval print loop)は、対話モードのことである(入力を読み、評価し、結果を出力し、再度入力を読み、と繰り返す)
+
+
+パース手法には、大きく分けて次の二つがある
+1. トップダウンパース(top-down parsing): ASTのルートノードを初めに作り、下に降りていく
+2. ボトムアップパース(bottom-up parsing): その逆
+
+
+
 
