@@ -1,3 +1,5 @@
+use std::mem;
+
 use super::ast;
 use super::lexer::Lexer;
 use super::token::Token;
@@ -19,8 +21,9 @@ impl Parser {
         ret.parse_next_token();
         ret
     }
+
     pub fn parse_next_token(&mut self) {
-        self.current_token = self.next_token.clone();
+        mem::swap(&mut self.current_token, &mut self.next_token);
         self.next_token = Some(self.lexer.get_next_token());
     }
 }
