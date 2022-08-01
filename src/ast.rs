@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use super::token::Token;
+use super::token::{Token, TokenType};
 
 /*-------------------------------------*/
 
@@ -41,6 +41,9 @@ impl Root {
     pub fn statements(&self) -> &Vec<Box<dyn Statement>> {
         &self.statements
     }
+    pub fn statements_mut(&mut self) -> &mut Vec<Box<dyn Statement>> {
+        &mut self.statements
+    }
 }
 
 /*-------------------------------------*/
@@ -62,6 +65,9 @@ impl Node for Identifier {
 impl Expression for Identifier {}
 
 impl Identifier {
+    pub fn new(token: Token, value: String) -> Self {
+        Identifier { token, value }
+    }
     pub fn token(&self) -> &Token {
         &self.token
     }
@@ -90,6 +96,13 @@ impl Node for LetStatement {
 impl Statement for LetStatement {}
 
 impl LetStatement {
+    pub fn new(left: Identifier, right: Box<dyn Expression>) -> Self {
+        LetStatement {
+            token: Token::new(TokenType::Let, None),
+            left,
+            right,
+        }
+    }
     pub fn token(&self) -> &Token {
         &self.token
     }

@@ -1,34 +1,80 @@
 use std::mem;
 
-use super::ast::Root;
+use super::ast::{Identifier, LetStatement, Root, Statement};
 use super::lexer::Lexer;
-use super::token::Token;
+use super::token::{Token, TokenType};
 
 pub struct Parser {
     lexer: Lexer,
-    current_token: Option<Token>,
-    next_token: Option<Token>,
+    current_token: Token,
+    next_token: Token,
 }
 
 impl Parser {
     pub fn new(lexer: Lexer) -> Self {
         let mut ret = Parser {
             lexer,
-            current_token: None,
-            next_token: None,
+            current_token: Token::new(TokenType::Eof, None),
+            next_token: Token::new(TokenType::Eof, None),
         };
         ret.parse_next_token();
         ret.parse_next_token();
         ret
     }
 
-    pub fn parse_next_token(&mut self) {
+    fn parse_next_token(&mut self) {
         mem::swap(&mut self.current_token, &mut self.next_token);
-        self.next_token = Some(self.lexer.get_next_token());
+        self.next_token = self.lexer.get_next_token();
+    }
+
+    fn parse_statement(&mut self) -> Option<impl Statement> {
+        match self.current_token.tp() {
+            TokenType::Let => self.parse_let_statement(),
+            _ => None,
+        }
+    }
+
+    fn expect_and_peek(&mut self, tp: TokenType) -> bool {
+        if (self.next_token.tp() == &tp) {
+            self.parse_next_token();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn parse_let_statement(&mut self) -> Option<LetStatement> {
+        if (!self.expect_and_peek(TokenType::Ident)) {
+            return None;
+        }
+        let left = Identifier::new(
+            self.current_token.clone(),
+            self.current_token.literal().clone().unwrap(),
+        );
+        if (!self.expect_and_peek(TokenType::Assign)) {
+            return None;
+        }
+        while (self.current_token.tp() != &TokenType::Semicolon) {
+            self.parse_next_token();
+        }
+        Some(LetStatement::new(
+            left,
+            Box::new(Identifier::new(
+                Token::new(TokenType::Illegal, None),
+                String::new(),
+            )),
+        ))
     }
 
     pub fn parse(&mut self) -> Root {
-        Root::new()
+        let mut root = Root::new();
+        while (self.current_token.tp() != &TokenType::Eof) {
+            if let Some(e) = self.parse_statement() {
+                root.statements_mut().push(Box::new(e));
+            }
+            self.parse_next_token();
+        }
+        root
     }
 }
 
