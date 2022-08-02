@@ -8,6 +8,7 @@ pub struct Parser {
     lexer: Lexer,
     current_token: Token,
     next_token: Token,
+    errors: Vec<String>,
 }
 
 impl Parser {
@@ -16,6 +17,7 @@ impl Parser {
             lexer,
             current_token: Token::new(TokenType::Eof, None),
             next_token: Token::new(TokenType::Eof, None),
+            errors: Vec::new(),
         };
         ret.parse_next_token();
         ret.parse_next_token();
@@ -39,6 +41,11 @@ impl Parser {
             self.parse_next_token();
             true
         } else {
+            self.errors.push(format!(
+                "expected next token to be {:?}, got {:?} instead",
+                tp,
+                self.next_token.tp()
+            ));
             false
         }
     }
@@ -84,7 +91,6 @@ mod tests {
     use super::super::ast;
     use super::super::lexer::Lexer;
     use super::super::token::{Token, TokenType};
-    use super::super::util;
     use super::Parser;
 
     #[test]
@@ -99,6 +105,7 @@ mod tests {
         let root = parser.parse();
 
         assert_eq!(2, root.statements().len());
+        assert_eq!(0, parser.errors.len());
 
         let names = vec!["x", "ab"];
 
