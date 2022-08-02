@@ -1,8 +1,18 @@
 use std::mem;
 
-use super::ast::{Identifier, LetStatement, ReturnStatement, Root, Statement};
+use super::ast::*;
 use super::lexer::Lexer;
 use super::token::{Token, TokenType};
+
+enum Precedence {
+    Lowest = 0,
+    Equals,      //`==`
+    LessGreater, //`<`, `>`
+    Sum,         //`+`
+    Product,     //`*`
+    Prefix,      //`-`, `!`
+    Call,        //`f()`
+}
 
 pub struct Parser {
     lexer: Lexer,
@@ -33,8 +43,19 @@ impl Parser {
         match self.current_token.tp() {
             TokenType::Let => self.parse_let_statement().map(|e| Box::new(e) as _),
             TokenType::Return => self.parse_return_statement().map(|e| Box::new(e) as _),
-            _ => None,
+            _ => self.parse_expression_statement().map(|e| Box::new(e) as _),
         }
+    }
+
+    fn parse_expression(&mut self, precedence: Precedence) -> Box<dyn Expression> {
+        Box::new(self.parse_identifier())
+    }
+
+    fn parse_identifier(&self) -> Identifier {
+        Identifier::new(
+            self.current_token.clone(),
+            self.current_token.literal().clone().unwrap(),
+        )
     }
 
     fn expect_and_peek(&mut self, tp: TokenType) -> bool {
@@ -82,6 +103,17 @@ impl Parser {
             Token::new(TokenType::Illegal, None),
             String::new(),
         ))))
+    }
+
+    fn parse_expression_statement(&mut self) -> Option<ExpressionStatement> {
+        let ret = ExpressionStatement::new(
+            self.current_token.clone(),
+            self.parse_expression(Precedence::Lowest),
+        );
+        if (self.next_token.tp() == &TokenType::Semicolon) {
+            self.parse_next_token();
+        }
+        Some(ret)
     }
 
     pub fn parse(&mut self) -> Root {
@@ -155,6 +187,34 @@ mod tests {
             assert!(s.is_some());
             let s = s.unwrap();
             assert_eq!(s.token(), &Token::new(TokenType::Return, None));
+        }
+    }
+
+    #[test]
+    fn test03() {
+        let input = r#"
+            foobar;
+        "#;
+
+        let mut parser = Parser::new(Lexer::new(&input));
+
+        let root = parser.parse();
+
+        assert_eq!(1, root.statements().len());
+        assert_eq!(0, parser.errors.len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ast::ExpressionStatement>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_eq!(s.token(), &Token::new(TokenType::Ident, Some("foobar")));
+            let v = s.value().as_any().downcast_ref::<ast::Identifier>();
+            assert!(v.is_some());
+            let v = v.unwrap();
+            assert_eq!(v.token(), &Token::new(TokenType::Ident, Some("foobar")));
+            assert_eq!(v.value(), "foobar");
         }
     }
 }

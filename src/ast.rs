@@ -148,3 +148,33 @@ impl ReturnStatement {
 }
 
 /*-------------------------------------*/
+
+pub struct ExpressionStatement {
+    token: Token, //first token of an expression
+    value: Box<dyn Expression>,
+}
+
+impl Node for ExpressionStatement {
+    fn get_literal(&self) -> Option<String> {
+        self.token.literal().clone()
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl Statement for ExpressionStatement {}
+
+impl ExpressionStatement {
+    pub fn new(token: Token, value: Box<dyn Expression>) -> Self {
+        ExpressionStatement { token, value }
+    }
+    pub fn token(&self) -> &Token {
+        &self.token
+    }
+    pub fn value(&self) -> &dyn Expression {
+        self.value.as_ref()
+    }
+}
+
+/*-------------------------------------*/

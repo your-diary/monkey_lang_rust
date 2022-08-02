@@ -15,6 +15,7 @@ REPL(read eval print loop)は、対話モードのことである(入力を読�
 1. トップダウンパース(top-down parsing): ASTのルートノードを初めに作り、下に降りていく
 2. ボトムアップパース(bottom-up parsing): その逆
 
+二項演算子(binary operator)は、"infix operator"とも呼ばれる("infix"は「接中辞」と訳される。"prefix"や"postfix"と同様、言語学の用語である)
 
 
 
