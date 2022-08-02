@@ -115,3 +115,36 @@ impl LetStatement {
 }
 
 /*-------------------------------------*/
+
+pub struct ReturnStatement {
+    token: Token,
+    value: Box<dyn Expression>,
+}
+
+impl Node for ReturnStatement {
+    fn get_literal(&self) -> Option<String> {
+        self.token.literal().clone()
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl Statement for ReturnStatement {}
+
+impl ReturnStatement {
+    pub fn new(value: Box<dyn Expression>) -> Self {
+        ReturnStatement {
+            token: Token::new(TokenType::Return, None),
+            value,
+        }
+    }
+    pub fn token(&self) -> &Token {
+        &self.token
+    }
+    pub fn value(&self) -> &dyn Expression {
+        self.value.as_ref()
+    }
+}
+
+/*-------------------------------------*/

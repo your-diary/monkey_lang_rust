@@ -1,6 +1,6 @@
 use std::mem;
 
-use super::ast::{Identifier, LetStatement, Root, Statement};
+use super::ast::{Identifier, LetStatement, ReturnStatement, Root, Statement};
 use super::lexer::Lexer;
 use super::token::{Token, TokenType};
 
@@ -29,9 +29,10 @@ impl Parser {
         self.next_token = self.lexer.get_next_token();
     }
 
-    fn parse_statement(&mut self) -> Option<impl Statement> {
+    fn parse_statement(&mut self) -> Option<Box<dyn Statement>> {
         match self.current_token.tp() {
-            TokenType::Let => self.parse_let_statement(),
+            TokenType::Let => self.parse_let_statement().map(|e| Box::new(e) as _),
+            TokenType::Return => self.parse_return_statement().map(|e| Box::new(e) as _),
             _ => None,
         }
     }
@@ -73,11 +74,21 @@ impl Parser {
         ))
     }
 
+    fn parse_return_statement(&mut self) -> Option<ReturnStatement> {
+        while (self.current_token.tp() != &TokenType::Semicolon) {
+            self.parse_next_token();
+        }
+        Some(ReturnStatement::new(Box::new(Identifier::new(
+            Token::new(TokenType::Illegal, None),
+            String::new(),
+        ))))
+    }
+
     pub fn parse(&mut self) -> Root {
         let mut root = Root::new();
         while (self.current_token.tp() != &TokenType::Eof) {
             if let Some(e) = self.parse_statement() {
-                root.statements_mut().push(Box::new(e));
+                root.statements_mut().push(e);
             }
             self.parse_next_token();
         }
@@ -120,6 +131,30 @@ mod tests {
             let left = s.left();
             assert_eq!(left.token(), &Token::new(TokenType::Ident, Some(name)));
             assert_eq!(left.value(), name);
+        }
+    }
+
+    #[test]
+    fn test02() {
+        let input = r#"
+            return 5;
+            return 10;
+        "#;
+
+        let mut parser = Parser::new(Lexer::new(&input));
+
+        let root = parser.parse();
+
+        assert_eq!(2, root.statements().len());
+        assert_eq!(0, parser.errors.len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ast::ReturnStatement>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_eq!(s.token(), &Token::new(TokenType::Return, None));
         }
     }
 }
