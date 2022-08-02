@@ -79,8 +79,8 @@ pub fn lookup_token_type(sequence: &str) -> TokenType {
         "false" => TokenType::False,
         "if" => TokenType::If,
         "else" => TokenType::Else,
-        _ if util::is_letter(first_char) => TokenType::Ident,
         _ if first_char.is_ascii_digit() => TokenType::Int,
+        _ if util::is_identifier(first_char) => TokenType::Ident,
         _ => TokenType::Illegal,
     }
 }

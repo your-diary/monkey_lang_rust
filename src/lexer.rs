@@ -3,59 +3,48 @@ use super::util;
 
 pub struct Lexer {
     input: Vec<char>,
-    position: usize,      //last read position
-    read_position: usize, //next character position (always `position + 1`)
-    ch: char,             //last read character
+    position: usize,  //last read position
+    ch: Option<char>, //last read character
 }
 
 impl Lexer {
     pub fn new(input: &str) -> Self {
-        let mut ret = Lexer {
-            input: String::from(input).chars().collect(),
+        let chars: Vec<char> = String::from(input).chars().collect();
+        let first_ch = chars.get(0).copied();
+        Lexer {
+            input: chars,
             position: 0,
-            read_position: 0,
-            ch: '\0',
-        };
-        ret.read_next_char();
-        ret
+            ch: first_ch,
+        }
     }
 
     pub fn read_next_char(&mut self) {
-        if (self.read_position >= self.input.len()) {
-            self.ch = '\0';
-            return;
-        }
-        self.ch = self.input[self.read_position];
-        self.position = self.read_position;
-        self.read_position += 1;
+        self.position += 1;
+        self.ch = self.input.get(self.position).copied();
     }
 
     //like `read_next_char()` but immutable and instead returns the next character
-    pub fn peek_next_char(&self) -> char {
-        if (self.read_position >= self.input.len()) {
-            '\0'
-        } else {
-            self.input[self.read_position]
-        }
+    pub fn peek_next_char(&self) -> Option<char> {
+        self.input.get(self.position + 1).copied()
     }
 
     fn eat_whitespace(&mut self) {
-        while (self.ch.is_ascii_whitespace()) {
+        while (self.ch.is_some() && self.ch.unwrap().is_ascii_whitespace()) {
             self.read_next_char();
         }
     }
 
-    pub fn get_identifier(&mut self) -> String {
+    pub fn read_identifier(&mut self) -> String {
         let position = self.position;
-        while util::is_letter(self.ch) {
+        while (self.ch.is_some() && util::is_identifier(self.ch.unwrap())) {
             self.read_next_char();
         }
         self.input[position..self.position].iter().collect()
     }
 
-    pub fn get_number(&mut self) -> String {
+    pub fn read_number(&mut self) -> String {
         let position = self.position;
-        while (self.ch.is_ascii_digit()) {
+        while (self.ch.is_some() && self.ch.unwrap().is_ascii_digit()) {
             self.read_next_char();
         }
         self.input[position..self.position].iter().collect()
@@ -63,13 +52,17 @@ impl Lexer {
 
     pub fn get_next_token(&mut self) -> Token {
         self.eat_whitespace();
-        let sequence: String = match self.ch {
-            c if util::is_letter(c) => self.get_identifier(),
-            c if c.is_ascii_digit() => self.get_number(),
+        if (self.ch.is_none()) {
+            return Token::new(TokenType::Eof, None);
+        }
+        let sequence: String = match self.ch.unwrap() {
+            c if c.is_ascii_digit() => self.read_number(),
+            c if util::is_identifier(c) => self.read_identifier(),
             c => {
                 let ret = match c {
                     '=' => {
-                        if (self.peek_next_char() == '=') {
+                        let next_ch = self.peek_next_char();
+                        if (next_ch.is_some() && (next_ch.unwrap() == '=')) {
                             self.read_next_char();
                             "==".to_string()
                         } else {
@@ -77,7 +70,8 @@ impl Lexer {
                         }
                     }
                     '!' => {
-                        if (self.peek_next_char() == '=') {
+                        let next_ch = self.peek_next_char();
+                        if (next_ch.is_some() && (next_ch.unwrap() == '=')) {
                             self.read_next_char();
                             "!=".to_string()
                         } else {
@@ -86,7 +80,7 @@ impl Lexer {
                     }
                     c => c.to_string(),
                 };
-                self.read_next_char(); //moves to the next position as `get_identifier()` does
+                self.read_next_char(); //moves to the next position as `read_identifier()` does
                 ret
             }
         };
@@ -132,7 +126,7 @@ mod tests {
     fn test02() {
         let input = r#"
             let five = 5;
-            let ten = 10;
+            let ten2 = 10;
             let add = fn(x, y) {
                 x + y;
             };
@@ -161,7 +155,7 @@ mod tests {
             Token::new(TokenType::Semicolon, None),
             //2
             Token::new(TokenType::Let, None),
-            Token::new(TokenType::Ident, Some("ten")),
+            Token::new(TokenType::Ident, Some("ten2")),
             Token::new(TokenType::Assign, None),
             Token::new(TokenType::Int, Some("10")),
             Token::new(TokenType::Semicolon, None),
