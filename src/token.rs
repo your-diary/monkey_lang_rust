@@ -5,7 +5,7 @@ pub enum Token {
     Illegal,
     Eof,
     Ident(String),
-    Int(String),
+    Int(i32),
     Assign,
     Plus,
     Minus,
@@ -58,7 +58,7 @@ pub fn lookup_token(sequence: &str) -> Token {
         "false" => Token::False,
         "if" => Token::If,
         "else" => Token::Else,
-        _ if first_char.is_ascii_digit() => Token::Int(String::new()),
+        _ if first_char.is_ascii_digit() => Token::Int(0),
         _ if util::is_identifier(first_char) => Token::Ident(String::new()),
         _ => Token::Illegal,
     }
