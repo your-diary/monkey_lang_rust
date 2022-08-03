@@ -63,6 +63,29 @@ impl IdentifierNode {
 
 /*-------------------------------------*/
 
+pub struct IntegerLiteralNode {
+    token: Token,
+}
+
+impl Node for IntegerLiteralNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ExpressionNode for IntegerLiteralNode {}
+
+impl IntegerLiteralNode {
+    pub fn new(token: Token) -> Self {
+        IntegerLiteralNode { token }
+    }
+    pub fn token(&self) -> &Token {
+        &self.token
+    }
+}
+
+/*-------------------------------------*/
+
 pub struct LetStatementNode {
     token: Token,
     left: IdentifierNode,

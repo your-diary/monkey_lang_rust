@@ -119,7 +119,12 @@ impl Parser {
 
     fn parse_expression(&self, precedence: Precedence) -> Option<Box<dyn ExpressionNode>> {
         //TODO
-        self.parse_identifier().map(|e| Box::new(e) as _)
+        let current_token = self.tokens.get(self.index);
+        match current_token {
+            Some(Token::Ident(_)) => self.parse_identifier().map(|e| Box::new(e) as _),
+            Some(Token::Int(_)) => self.parse_integer_literal().map(|e| Box::new(e) as _),
+            _ => None,
+        }
     }
 
     fn parse_identifier(&self) -> Option<IdentifierNode> {
@@ -127,6 +132,13 @@ impl Parser {
         self.tokens
             .get(self.index)
             .map(|e| IdentifierNode::new(e.clone()))
+    }
+
+    fn parse_integer_literal(&self) -> Option<IntegerLiteralNode> {
+        //TODO
+        self.tokens
+            .get(self.index)
+            .map(|e| IntegerLiteralNode::new(e.clone()))
     }
 }
 
@@ -226,6 +238,32 @@ mod tests {
             assert!(v.is_some());
             let v = v.unwrap();
             assert_eq!(v.token(), &Token::Ident(String::from("foobar")));
+        }
+    }
+
+    #[test]
+    fn test04() {
+        let input = r#"
+                5;
+            "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+
+        assert_eq!(1, root.statements().len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ast::ExpressionStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_eq!(s.token(), &Token::Int(5));
+            let v = s.value().as_any().downcast_ref::<ast::IntegerLiteralNode>();
+            assert!(v.is_some());
+            let v = v.unwrap();
+            assert_eq!(v.token(), &Token::Int(5));
         }
     }
 }
