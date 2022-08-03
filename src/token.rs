@@ -1,32 +1,11 @@
 use super::util;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Token {
-    tp: TokenType, //`type` is a reverved word
-    literal: Option<String>,
-}
-
-impl Token {
-    pub fn new(tp: TokenType, literal: Option<&str>) -> Self {
-        Token {
-            tp,
-            literal: literal.map(String::from),
-        }
-    }
-    pub fn tp(&self) -> &TokenType {
-        &self.tp
-    }
-    pub fn literal(&self) -> &Option<String> {
-        &self.literal
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum TokenType {
+pub enum Token {
     Illegal,
     Eof,
-    Ident,
-    Int,
+    Ident(String),
+    Int(String),
     Assign,
     Plus,
     Minus,
@@ -52,35 +31,35 @@ pub enum TokenType {
     Else,
 }
 
-pub fn lookup_token_type(sequence: &str) -> TokenType {
+pub fn lookup_token(sequence: &str) -> Token {
     let first_char = sequence.chars().next().unwrap();
     match sequence {
-        "\0" => TokenType::Eof,
-        "=" => TokenType::Assign,
-        "+" => TokenType::Plus,
-        "-" => TokenType::Minus,
-        "*" => TokenType::Asterisk,
-        "/" => TokenType::Slash,
-        "!" => TokenType::Invert,
-        "==" => TokenType::Eq,
-        "!=" => TokenType::NotEq,
-        "<" => TokenType::Lt,
-        ">" => TokenType::Gt,
-        "," => TokenType::Comma,
-        ";" => TokenType::Semicolon,
-        "(" => TokenType::Lparen,
-        ")" => TokenType::Rparen,
-        "{" => TokenType::Lbrace,
-        "}" => TokenType::Rbrace,
-        "fn" => TokenType::Function,
-        "let" => TokenType::Let,
-        "return" => TokenType::Return,
-        "true" => TokenType::True,
-        "false" => TokenType::False,
-        "if" => TokenType::If,
-        "else" => TokenType::Else,
-        _ if first_char.is_ascii_digit() => TokenType::Int,
-        _ if util::is_identifier(first_char) => TokenType::Ident,
-        _ => TokenType::Illegal,
+        "\0" => Token::Eof,
+        "=" => Token::Assign,
+        "+" => Token::Plus,
+        "-" => Token::Minus,
+        "*" => Token::Asterisk,
+        "/" => Token::Slash,
+        "!" => Token::Invert,
+        "==" => Token::Eq,
+        "!=" => Token::NotEq,
+        "<" => Token::Lt,
+        ">" => Token::Gt,
+        "," => Token::Comma,
+        ";" => Token::Semicolon,
+        "(" => Token::Lparen,
+        ")" => Token::Rparen,
+        "{" => Token::Lbrace,
+        "}" => Token::Rbrace,
+        "fn" => Token::Function,
+        "let" => Token::Let,
+        "return" => Token::Return,
+        "true" => Token::True,
+        "false" => Token::False,
+        "if" => Token::If,
+        "else" => Token::Else,
+        _ if first_char.is_ascii_digit() => Token::Int(String::new()),
+        _ if util::is_identifier(first_char) => Token::Ident(String::new()),
+        _ => Token::Illegal,
     }
 }

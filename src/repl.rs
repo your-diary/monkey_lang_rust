@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 
 use super::lexer::Lexer;
-use super::token::TokenType;
+use super::token::Token;
 
 pub fn start() {
     loop {
@@ -20,7 +20,7 @@ pub fn start() {
         loop {
             let token = lexer.get_next_token();
             println!("{:?}", token);
-            if (token.tp() == &TokenType::Eof) {
+            if let Token::Eof = token {
                 break;
             }
         }

@@ -1,4 +1,4 @@
-use super::token::{self, Token, TokenType};
+use super::token::{self, Token};
 use super::util;
 
 pub struct Lexer {
@@ -53,7 +53,7 @@ impl Lexer {
     pub fn get_next_token(&mut self) -> Token {
         self.eat_whitespace();
         if (self.ch.is_none()) {
-            return Token::new(TokenType::Eof, None);
+            return Token::Eof;
         }
         let sequence: String = match self.ch.unwrap() {
             c if c.is_ascii_digit() => self.read_number(),
@@ -84,10 +84,10 @@ impl Lexer {
                 ret
             }
         };
-        match token::lookup_token_type(&sequence) {
-            TokenType::Ident => Token::new(TokenType::Ident, Some(&sequence)),
-            TokenType::Int => Token::new(TokenType::Int, Some(&sequence)),
-            t => Token::new(t, None),
+        match token::lookup_token(&sequence) {
+            Token::Ident(_) => Token::Ident(sequence),
+            Token::Int(_) => Token::Int(sequence),
+            t => t,
         }
     }
 }
@@ -95,7 +95,7 @@ impl Lexer {
 #[cfg(test)]
 mod tests {
 
-    use super::super::token::{Token, TokenType};
+    use super::super::token::Token;
     use super::Lexer;
 
     #[test]
@@ -103,15 +103,15 @@ mod tests {
         let input = "=+(){},;";
 
         let expected = vec![
-            Token::new(TokenType::Assign, None),
-            Token::new(TokenType::Plus, None),
-            Token::new(TokenType::Lparen, None),
-            Token::new(TokenType::Rparen, None),
-            Token::new(TokenType::Lbrace, None),
-            Token::new(TokenType::Rbrace, None),
-            Token::new(TokenType::Comma, None),
-            Token::new(TokenType::Semicolon, None),
-            Token::new(TokenType::Eof, None),
+            Token::Assign,
+            Token::Plus,
+            Token::Lparen,
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Rbrace,
+            Token::Comma,
+            Token::Semicolon,
+            Token::Eof,
         ];
 
         let mut lexer = Lexer::new(input);
@@ -148,88 +148,88 @@ mod tests {
 
         let expected = vec![
             //1
-            Token::new(TokenType::Let, None),
-            Token::new(TokenType::Ident, Some("five")),
-            Token::new(TokenType::Assign, None),
-            Token::new(TokenType::Int, Some("5")),
-            Token::new(TokenType::Semicolon, None),
+            Token::Let,
+            Token::Ident("five".to_string()),
+            Token::Assign,
+            Token::Int("5".to_string()),
+            Token::Semicolon,
             //2
-            Token::new(TokenType::Let, None),
-            Token::new(TokenType::Ident, Some("ten2")),
-            Token::new(TokenType::Assign, None),
-            Token::new(TokenType::Int, Some("10")),
-            Token::new(TokenType::Semicolon, None),
+            Token::Let,
+            Token::Ident("ten2".to_string()),
+            Token::Assign,
+            Token::Int("10".to_string()),
+            Token::Semicolon,
             //3
-            Token::new(TokenType::Let, None),
-            Token::new(TokenType::Ident, Some("add")),
-            Token::new(TokenType::Assign, None),
-            Token::new(TokenType::Function, None),
-            Token::new(TokenType::Lparen, None),
-            Token::new(TokenType::Ident, Some("x")),
-            Token::new(TokenType::Comma, None),
-            Token::new(TokenType::Ident, Some("y")),
-            Token::new(TokenType::Rparen, None),
-            Token::new(TokenType::Lbrace, None),
-            Token::new(TokenType::Ident, Some("x")),
-            Token::new(TokenType::Plus, None),
-            Token::new(TokenType::Ident, Some("y")),
-            Token::new(TokenType::Semicolon, None),
-            Token::new(TokenType::Rbrace, None),
-            Token::new(TokenType::Semicolon, None),
+            Token::Let,
+            Token::Ident("add".to_string()),
+            Token::Assign,
+            Token::Function,
+            Token::Lparen,
+            Token::Ident("x".to_string()),
+            Token::Comma,
+            Token::Ident("y".to_string()),
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Ident("x".to_string()),
+            Token::Plus,
+            Token::Ident("y".to_string()),
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Semicolon,
             //4
-            Token::new(TokenType::Let, None),
-            Token::new(TokenType::Ident, Some("result")),
-            Token::new(TokenType::Assign, None),
-            Token::new(TokenType::Ident, Some("add")),
-            Token::new(TokenType::Lparen, None),
-            Token::new(TokenType::Ident, Some("five")),
-            Token::new(TokenType::Comma, None),
-            Token::new(TokenType::Ident, Some("ten")),
-            Token::new(TokenType::Rparen, None),
-            Token::new(TokenType::Semicolon, None),
+            Token::Let,
+            Token::Ident("result".to_string()),
+            Token::Assign,
+            Token::Ident("add".to_string()),
+            Token::Lparen,
+            Token::Ident("five".to_string()),
+            Token::Comma,
+            Token::Ident("ten".to_string()),
+            Token::Rparen,
+            Token::Semicolon,
             //5
-            Token::new(TokenType::Invert, None),
-            Token::new(TokenType::Minus, None),
-            Token::new(TokenType::Slash, None),
-            Token::new(TokenType::Asterisk, None),
-            Token::new(TokenType::Int, Some("5")),
-            Token::new(TokenType::Semicolon, None),
+            Token::Invert,
+            Token::Minus,
+            Token::Slash,
+            Token::Asterisk,
+            Token::Int("5".to_string()),
+            Token::Semicolon,
             //6
-            Token::new(TokenType::Int, Some("5")),
-            Token::new(TokenType::Lt, None),
-            Token::new(TokenType::Int, Some("10")),
-            Token::new(TokenType::Gt, None),
-            Token::new(TokenType::Int, Some("5")),
-            Token::new(TokenType::Semicolon, None),
+            Token::Int("5".to_string()),
+            Token::Lt,
+            Token::Int("10".to_string()),
+            Token::Gt,
+            Token::Int("5".to_string()),
+            Token::Semicolon,
             //7
-            Token::new(TokenType::If, None),
-            Token::new(TokenType::Lparen, None),
-            Token::new(TokenType::Int, Some("5")),
-            Token::new(TokenType::Lt, None),
-            Token::new(TokenType::Int, Some("10")),
-            Token::new(TokenType::Rparen, None),
-            Token::new(TokenType::Lbrace, None),
-            Token::new(TokenType::Return, None),
-            Token::new(TokenType::True, None),
-            Token::new(TokenType::Semicolon, None),
-            Token::new(TokenType::Rbrace, None),
-            Token::new(TokenType::Else, None),
-            Token::new(TokenType::Lbrace, None),
-            Token::new(TokenType::Return, None),
-            Token::new(TokenType::False, None),
-            Token::new(TokenType::Semicolon, None),
-            Token::new(TokenType::Rbrace, None),
+            Token::If,
+            Token::Lparen,
+            Token::Int("5".to_string()),
+            Token::Lt,
+            Token::Int("10".to_string()),
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Return,
+            Token::True,
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Else,
+            Token::Lbrace,
+            Token::Return,
+            Token::False,
+            Token::Semicolon,
+            Token::Rbrace,
             //8
-            Token::new(TokenType::Int, Some("10")),
-            Token::new(TokenType::Eq, None),
-            Token::new(TokenType::Int, Some("10")),
-            Token::new(TokenType::Semicolon, None),
-            Token::new(TokenType::Int, Some("10")),
-            Token::new(TokenType::NotEq, None),
-            Token::new(TokenType::Int, Some("9")),
-            Token::new(TokenType::Semicolon, None),
+            Token::Int("10".to_string()),
+            Token::Eq,
+            Token::Int("10".to_string()),
+            Token::Semicolon,
+            Token::Int("10".to_string()),
+            Token::NotEq,
+            Token::Int("9".to_string()),
+            Token::Semicolon,
             //9
-            Token::new(TokenType::Eof, None),
+            Token::Eof,
         ];
 
         let mut lexer = Lexer::new(input);
