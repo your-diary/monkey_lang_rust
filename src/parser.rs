@@ -9,7 +9,7 @@ enum Precedence {
     LessGreater, //`<`, `>`
     Sum,         //`+`
     Product,     //`*`
-    Prefix,      //`-`, `!`
+    Unary,       //`-`, `!`
     Call,        //`f()`
 }
 
@@ -143,14 +143,14 @@ impl Parser {
             .map(|e| IntegerLiteralNode::new(e.clone()))
     }
 
-    fn parse_prefix_expression(&mut self) -> Option<PrefixExpressionNode> {
+    fn parse_prefix_expression(&mut self) -> Option<UnaryExpressionNode> {
         match self.tokens.get(self.index) {
             None => None,
             Some(e) => {
                 let operator = e.clone();
                 self.index += 1;
-                self.parse_expression(Precedence::Prefix)
-                    .map(|e| PrefixExpressionNode::new(operator, e))
+                self.parse_expression(Precedence::Unary)
+                    .map(|e| UnaryExpressionNode::new(operator, e))
             }
         }
     }
@@ -325,7 +325,7 @@ mod tests {
             let v = s
                 .expression()
                 .as_any()
-                .downcast_ref::<ast::PrefixExpressionNode>();
+                .downcast_ref::<ast::UnaryExpressionNode>();
             assert!(v.is_some());
             let v = v.unwrap();
             assert_eq!(v.operator(), &l[i].operator);

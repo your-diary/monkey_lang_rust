@@ -63,22 +63,22 @@ impl IdentifierNode {
 
 /*-------------------------------------*/
 
-pub struct PrefixExpressionNode {
+pub struct UnaryExpressionNode {
     operator: Token,
     expression: Box<dyn ExpressionNode>,
 }
 
-impl Node for PrefixExpressionNode {
+impl Node for UnaryExpressionNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl ExpressionNode for PrefixExpressionNode {}
+impl ExpressionNode for UnaryExpressionNode {}
 
-impl PrefixExpressionNode {
+impl UnaryExpressionNode {
     pub fn new(operator: Token, expression: Box<dyn ExpressionNode>) -> Self {
-        PrefixExpressionNode {
+        UnaryExpressionNode {
             operator,
             expression,
         }
