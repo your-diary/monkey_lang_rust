@@ -63,6 +63,36 @@ impl IdentifierNode {
 
 /*-------------------------------------*/
 
+pub struct PrefixExpressionNode {
+    operator: Token,
+    expression: Box<dyn ExpressionNode>,
+}
+
+impl Node for PrefixExpressionNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ExpressionNode for PrefixExpressionNode {}
+
+impl PrefixExpressionNode {
+    pub fn new(operator: Token, expression: Box<dyn ExpressionNode>) -> Self {
+        PrefixExpressionNode {
+            operator,
+            expression,
+        }
+    }
+    pub fn operator(&self) -> &Token {
+        &self.operator
+    }
+    pub fn expression(&self) -> &dyn ExpressionNode {
+        self.expression.as_ref()
+    }
+}
+
+/*-------------------------------------*/
+
 pub struct IntegerLiteralNode {
     token: Token,
 }
@@ -88,8 +118,8 @@ impl IntegerLiteralNode {
 
 pub struct LetStatementNode {
     token: Token,
-    left: IdentifierNode,
-    right: Box<dyn ExpressionNode>,
+    identifier: IdentifierNode,
+    expression: Box<dyn ExpressionNode>,
 }
 
 impl Node for LetStatementNode {
@@ -101,21 +131,21 @@ impl Node for LetStatementNode {
 impl StatementNode for LetStatementNode {}
 
 impl LetStatementNode {
-    pub fn new(left: IdentifierNode, right: Box<dyn ExpressionNode>) -> Self {
+    pub fn new(identifier: IdentifierNode, expression: Box<dyn ExpressionNode>) -> Self {
         LetStatementNode {
             token: Token::Let,
-            left,
-            right,
+            identifier,
+            expression,
         }
     }
     pub fn token(&self) -> &Token {
         &self.token
     }
-    pub fn left(&self) -> &IdentifierNode {
-        &self.left
+    pub fn identifier(&self) -> &IdentifierNode {
+        &self.identifier
     }
-    pub fn right(&self) -> &dyn ExpressionNode {
-        self.right.as_ref()
+    pub fn expression(&self) -> &dyn ExpressionNode {
+        self.expression.as_ref()
     }
 }
 
@@ -123,7 +153,7 @@ impl LetStatementNode {
 
 pub struct ReturnStatementNode {
     token: Token,
-    value: Box<dyn ExpressionNode>,
+    expression: Box<dyn ExpressionNode>,
 }
 
 impl Node for ReturnStatementNode {
@@ -135,17 +165,17 @@ impl Node for ReturnStatementNode {
 impl StatementNode for ReturnStatementNode {}
 
 impl ReturnStatementNode {
-    pub fn new(value: Box<dyn ExpressionNode>) -> Self {
+    pub fn new(expression: Box<dyn ExpressionNode>) -> Self {
         ReturnStatementNode {
             token: Token::Return,
-            value,
+            expression,
         }
     }
     pub fn token(&self) -> &Token {
         &self.token
     }
-    pub fn value(&self) -> &dyn ExpressionNode {
-        self.value.as_ref()
+    pub fn expression(&self) -> &dyn ExpressionNode {
+        self.expression.as_ref()
     }
 }
 
@@ -153,7 +183,7 @@ impl ReturnStatementNode {
 
 pub struct ExpressionStatementNode {
     token: Token, //first token of an expression
-    value: Box<dyn ExpressionNode>,
+    expression: Box<dyn ExpressionNode>,
 }
 
 impl Node for ExpressionStatementNode {
@@ -165,14 +195,14 @@ impl Node for ExpressionStatementNode {
 impl StatementNode for ExpressionStatementNode {}
 
 impl ExpressionStatementNode {
-    pub fn new(token: Token, value: Box<dyn ExpressionNode>) -> Self {
-        ExpressionStatementNode { token, value }
+    pub fn new(token: Token, expression: Box<dyn ExpressionNode>) -> Self {
+        ExpressionStatementNode { token, expression }
     }
     pub fn token(&self) -> &Token {
         &self.token
     }
-    pub fn value(&self) -> &dyn ExpressionNode {
-        self.value.as_ref()
+    pub fn expression(&self) -> &dyn ExpressionNode {
+        self.expression.as_ref()
     }
 }
 

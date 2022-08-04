@@ -51,7 +51,7 @@ impl Parser {
         if (!self.expect_and_peek(Token::Ident(String::new()))) {
             return None;
         }
-        let left = IdentifierNode::new(self.tokens[self.index].clone());
+        let identifier = IdentifierNode::new(self.tokens[self.index].clone());
         if (!self.expect_and_peek(Token::Assign)) {
             return None;
         }
@@ -65,7 +65,7 @@ impl Parser {
             }
         }
         Some(LetStatementNode::new(
-            left,
+            identifier,
             Box::new(IdentifierNode::new(Token::Ident(String::new()))),
         ))
     }
@@ -101,7 +101,7 @@ impl Parser {
             None => {
                 return None;
             }
-            Some(e) => e,
+            Some(e) => e.clone(),
         };
         let expr = match self.parse_expression(Precedence::Lowest) {
             None => {
@@ -109,7 +109,7 @@ impl Parser {
             }
             Some(e) => e,
         };
-        let ret = ExpressionStatementNode::new(current_token.clone(), expr);
+        let ret = ExpressionStatementNode::new(current_token, expr);
         let next_token = self.tokens.get(self.index + 1);
         if (next_token.is_some() && (next_token.unwrap() == &Token::Semicolon)) {
             self.index += 1
@@ -117,12 +117,14 @@ impl Parser {
         Some(ret)
     }
 
-    fn parse_expression(&self, precedence: Precedence) -> Option<Box<dyn ExpressionNode>> {
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<dyn ExpressionNode>> {
         //TODO
         let current_token = self.tokens.get(self.index);
         match current_token {
             Some(Token::Ident(_)) => self.parse_identifier().map(|e| Box::new(e) as _),
             Some(Token::Int(_)) => self.parse_integer_literal().map(|e| Box::new(e) as _),
+            Some(Token::Invert) => self.parse_prefix_expression().map(|e| Box::new(e) as _),
+            Some(Token::Minus) => self.parse_prefix_expression().map(|e| Box::new(e) as _),
             _ => None,
         }
     }
@@ -139,6 +141,18 @@ impl Parser {
         self.tokens
             .get(self.index)
             .map(|e| IntegerLiteralNode::new(e.clone()))
+    }
+
+    fn parse_prefix_expression(&mut self) -> Option<PrefixExpressionNode> {
+        match self.tokens.get(self.index) {
+            None => None,
+            Some(e) => {
+                let operator = e.clone();
+                self.index += 1;
+                self.parse_expression(Precedence::Prefix)
+                    .map(|e| PrefixExpressionNode::new(operator, e))
+            }
+        }
     }
 }
 
@@ -187,8 +201,8 @@ mod tests {
             assert!(s.is_some());
             let s = s.unwrap();
             assert_eq!(s.token(), &Token::Let);
-            let left = s.left();
-            assert!(matches!(left.token(), Token::Ident(s) if (s == name)));
+            let identifier = s.identifier();
+            assert!(matches!(identifier.token(), Token::Ident(s) if (s == name)));
         }
     }
 
@@ -234,7 +248,10 @@ mod tests {
             assert!(s.is_some());
             let s = s.unwrap();
             assert_eq!(s.token(), &Token::Ident(String::from("foobar")));
-            let v = s.value().as_any().downcast_ref::<ast::IdentifierNode>();
+            let v = s
+                .expression()
+                .as_any()
+                .downcast_ref::<ast::IdentifierNode>();
             assert!(v.is_some());
             let v = v.unwrap();
             assert_eq!(v.token(), &Token::Ident(String::from("foobar")));
@@ -260,10 +277,65 @@ mod tests {
             assert!(s.is_some());
             let s = s.unwrap();
             assert_eq!(s.token(), &Token::Int(5));
-            let v = s.value().as_any().downcast_ref::<ast::IntegerLiteralNode>();
+            let v = s
+                .expression()
+                .as_any()
+                .downcast_ref::<ast::IntegerLiteralNode>();
             assert!(v.is_some());
             let v = v.unwrap();
             assert_eq!(v.token(), &Token::Int(5));
+        }
+    }
+
+    #[test]
+    fn test05() {
+        let input = r#"
+                    !5;
+                    -15;
+                "#;
+
+        struct T {
+            operator: Token,
+            value: i32,
+        }
+        let l = vec![
+            T {
+                operator: Token::Invert,
+                value: 5,
+            },
+            T {
+                operator: Token::Minus,
+                value: 15,
+            },
+        ];
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+
+        assert_eq!(2, root.statements().len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ast::ExpressionStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_eq!(s.token(), &l[i].operator);
+            let v = s
+                .expression()
+                .as_any()
+                .downcast_ref::<ast::PrefixExpressionNode>();
+            assert!(v.is_some());
+            let v = v.unwrap();
+            assert_eq!(v.operator(), &l[i].operator);
+            let v = v
+                .expression()
+                .as_any()
+                .downcast_ref::<ast::IntegerLiteralNode>();
+            assert!(v.is_some());
+            let v = v.unwrap();
+            assert_eq!(v.token(), &Token::Int(l[i].value));
         }
     }
 }
