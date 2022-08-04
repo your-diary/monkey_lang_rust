@@ -3,6 +3,7 @@ use std::mem;
 use super::ast::*;
 use super::token::Token;
 
+#[derive(PartialEq, PartialOrd)]
 enum Precedence {
     Lowest = 0,
     Equals,      //`==`
@@ -11,6 +12,35 @@ enum Precedence {
     Product,     //`*`
     Unary,       //`-`, `!`
     Call,        //`f()`
+}
+
+fn lookup_precedence(token: &Token) -> Precedence {
+    match token {
+        // Assign => Precedence::Sum,
+        Plus => Precedence::Sum,
+        Minus => Precedence::Sum,
+        Asterisk => Precedence::Product,
+        Slash => Precedence::Product,
+        // Invert => Precedence::Sum,
+        Eq => Precedence::Equals,
+        NotEq => Precedence::Equals,
+        Lt => Precedence::LessGreater,
+        Gt => Precedence::LessGreater,
+        // Comma => Precedence::Sum,
+        // Semicolon => Precedence::Sum,
+        // Lparen => Precedence::Sum,
+        // Rparen => Precedence::Sum,
+        // Lbrace => Precedence::Sum,
+        // Rbrace => Precedence::Sum,
+        // Function => Precedence::Sum,
+        // Let => Precedence::Sum,
+        // Return => Precedence::Sum,
+        // True => Precedence::Sum,
+        // False => Precedence::Sum,
+        // If => Precedence::Sum,
+        // Else => Precedence::Sum,
+        _ => Precedence::Lowest,
+    }
 }
 
 pub struct Parser {
@@ -118,15 +148,31 @@ impl Parser {
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<dyn ExpressionNode>> {
-        //TODO
-        let current_token = self.tokens.get(self.index);
-        match current_token {
+        let mut expr: Box<dyn ExpressionNode> = match self.tokens.get(self.index) {
             Some(Token::Ident(_)) => self.parse_identifier().map(|e| Box::new(e) as _),
             Some(Token::Int(_)) => self.parse_integer_literal().map(|e| Box::new(e) as _),
-            Some(Token::Invert) => self.parse_prefix_expression().map(|e| Box::new(e) as _),
-            Some(Token::Minus) => self.parse_prefix_expression().map(|e| Box::new(e) as _),
+            Some(Token::Invert) => self.parse_unary_expression().map(|e| Box::new(e) as _),
+            Some(Token::Minus) => self.parse_unary_expression().map(|e| Box::new(e) as _),
             _ => None,
+        }?;
+        loop {
+            let next_token = match self.tokens.get(self.index + 1) {
+                None => return None,
+                Some(e) => e,
+            };
+            if !((next_token != &Token::Semicolon)
+                && (next_token != &Token::Eof)
+                && (precedence < lookup_precedence(next_token)))
+            {
+                break;
+            }
+            self.index += 1;
+            expr = match self.parse_binary_expression(expr) {
+                None => return None,
+                Some(e) => Box::new(e) as _,
+            };
         }
+        Some(expr)
     }
 
     fn parse_identifier(&self) -> Option<IdentifierNode> {
@@ -143,7 +189,7 @@ impl Parser {
             .map(|e| IntegerLiteralNode::new(e.clone()))
     }
 
-    fn parse_prefix_expression(&mut self) -> Option<UnaryExpressionNode> {
+    fn parse_unary_expression(&mut self) -> Option<UnaryExpressionNode> {
         match self.tokens.get(self.index) {
             None => None,
             Some(e) => {
@@ -151,6 +197,21 @@ impl Parser {
                 self.index += 1;
                 self.parse_expression(Precedence::Unary)
                     .map(|e| UnaryExpressionNode::new(operator, e))
+            }
+        }
+    }
+
+    fn parse_binary_expression(
+        &mut self,
+        left: Box<dyn ExpressionNode>,
+    ) -> Option<BinaryExpressionNode> {
+        match self.tokens.get(self.index) {
+            None => None,
+            Some(e) => {
+                let operator = e.clone();
+                self.index += 1;
+                self.parse_expression(lookup_precedence(&operator))
+                    .map(|right| BinaryExpressionNode::new(operator, left, right))
             }
         }
     }
@@ -336,6 +397,75 @@ mod tests {
             assert!(v.is_some());
             let v = v.unwrap();
             assert_eq!(v.token(), &Token::Int(l[i].value));
+        }
+    }
+
+    #[test]
+    fn test06() {
+        let input = r#"
+                    1 + 2;
+                    1 - 2;
+                    1 * 2;
+                    1 / 2;
+                    1 > 2;
+                    1 < 2;
+                    1 == 2;
+                    1 != 2;
+                "#;
+
+        struct T {
+            operator: Token,
+            left: i32,
+            right: i32,
+        }
+        impl T {
+            fn new(operator: Token) -> Self {
+                T {
+                    operator,
+                    left: 1,
+                    right: 2,
+                }
+            }
+        }
+        let l = vec![
+            T::new(Token::Plus),
+            T::new(Token::Minus),
+            T::new(Token::Asterisk),
+            T::new(Token::Slash),
+            T::new(Token::Gt),
+            T::new(Token::Lt),
+            T::new(Token::Eq),
+            T::new(Token::NotEq),
+        ];
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+
+        assert_eq!(8, root.statements().len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ast::ExpressionStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_eq!(s.token(), &Token::Int(l[i].left));
+            let v = s
+                .expression()
+                .as_any()
+                .downcast_ref::<ast::BinaryExpressionNode>();
+            assert!(v.is_some());
+            let v = v.unwrap();
+            assert_eq!(v.operator(), &l[i].operator);
+            let left = v.left().as_any().downcast_ref::<ast::IntegerLiteralNode>();
+            assert!(left.is_some());
+            let left = left.unwrap();
+            assert_eq!(left.token(), &Token::Int(l[i].left));
+            let right = v.right().as_any().downcast_ref::<ast::IntegerLiteralNode>();
+            assert!(right.is_some());
+            let right = right.unwrap();
+            assert_eq!(right.token(), &Token::Int(l[i].right));
         }
     }
 }

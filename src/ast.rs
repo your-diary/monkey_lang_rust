@@ -93,6 +93,45 @@ impl UnaryExpressionNode {
 
 /*-------------------------------------*/
 
+pub struct BinaryExpressionNode {
+    operator: Token,
+    left: Box<dyn ExpressionNode>,
+    right: Box<dyn ExpressionNode>,
+}
+
+impl Node for BinaryExpressionNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ExpressionNode for BinaryExpressionNode {}
+
+impl BinaryExpressionNode {
+    pub fn new(
+        operator: Token,
+        left: Box<dyn ExpressionNode>,
+        right: Box<dyn ExpressionNode>,
+    ) -> Self {
+        BinaryExpressionNode {
+            operator,
+            left,
+            right,
+        }
+    }
+    pub fn operator(&self) -> &Token {
+        &self.operator
+    }
+    pub fn left(&self) -> &dyn ExpressionNode {
+        self.left.as_ref()
+    }
+    pub fn right(&self) -> &dyn ExpressionNode {
+        self.right.as_ref()
+    }
+}
+
+/*-------------------------------------*/
+
 pub struct IntegerLiteralNode {
     token: Token,
 }
