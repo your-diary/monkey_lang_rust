@@ -3,7 +3,7 @@ use std::mem;
 use super::ast::*;
 use super::token::Token;
 
-#[derive(PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq, PartialOrd)]
 enum Precedence {
     Lowest = 0,
     Equals,      //`==`
@@ -16,29 +16,29 @@ enum Precedence {
 
 fn lookup_precedence(token: &Token) -> Precedence {
     match token {
-        // Assign => Precedence::Sum,
-        Plus => Precedence::Sum,
-        Minus => Precedence::Sum,
-        Asterisk => Precedence::Product,
-        Slash => Precedence::Product,
-        // Invert => Precedence::Sum,
-        Eq => Precedence::Equals,
-        NotEq => Precedence::Equals,
-        Lt => Precedence::LessGreater,
-        Gt => Precedence::LessGreater,
-        // Comma => Precedence::Sum,
-        // Semicolon => Precedence::Sum,
-        // Lparen => Precedence::Sum,
-        // Rparen => Precedence::Sum,
-        // Lbrace => Precedence::Sum,
-        // Rbrace => Precedence::Sum,
-        // Function => Precedence::Sum,
-        // Let => Precedence::Sum,
-        // Return => Precedence::Sum,
-        // True => Precedence::Sum,
-        // False => Precedence::Sum,
-        // If => Precedence::Sum,
-        // Else => Precedence::Sum,
+        // Token::Assign => Precedence::Sum,
+        Token::Plus => Precedence::Sum,
+        Token::Minus => Precedence::Sum,
+        Token::Asterisk => Precedence::Product,
+        Token::Slash => Precedence::Product,
+        // Token::Invert => Precedence::Sum,
+        Token::Eq => Precedence::Equals,
+        Token::NotEq => Precedence::Equals,
+        Token::Lt => Precedence::LessGreater,
+        Token::Gt => Precedence::LessGreater,
+        // Token::Comma => Precedence::Sum,
+        // Token::Semicolon => Precedence::Sum,
+        // Token::Lparen => Precedence::Sum,
+        Token::Rparen => Precedence::Lowest,
+        // Token::Lbrace => Precedence::Sum,
+        // Token::Rbrace => Precedence::Sum,
+        // Token::Function => Precedence::Sum,
+        // Token::Let => Precedence::Sum,
+        // Token::Return => Precedence::Sum,
+        // Token::True => Precedence::Sum,
+        // Token::False => Precedence::Sum,
+        // Token::If => Precedence::Sum,
+        // Token::Else => Precedence::Sum,
         _ => Precedence::Lowest,
     }
 }
@@ -149,6 +149,7 @@ impl Parser {
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<dyn ExpressionNode>> {
         let mut expr: Box<dyn ExpressionNode> = match self.tokens.get(self.index) {
+            Some(Token::Lparen) => self.parse_grouped_expression(),
             Some(Token::Ident(_)) => self.parse_identifier().map(|e| Box::new(e) as _),
             Some(Token::Int(_)) => self.parse_integer_literal().map(|e| Box::new(e) as _),
             Some(Token::Invert) => self.parse_unary_expression().map(|e| Box::new(e) as _),
@@ -175,6 +176,22 @@ impl Parser {
             };
         }
         Some(expr)
+    }
+
+    //Note `Token::Rparen` has the lowest `Precedence`.
+    //That's why this simple method works.
+    fn parse_grouped_expression(&mut self) -> Option<Box<dyn ExpressionNode>> {
+        self.index += 1;
+        match self.parse_expression(Precedence::Lowest) {
+            None => None,
+            Some(e) => {
+                if self.expect_and_peek(Token::Rparen) {
+                    Some(e)
+                } else {
+                    None
+                }
+            }
+        }
     }
 
     fn parse_identifier(&self) -> Option<IdentifierNode> {
@@ -508,5 +525,107 @@ mod tests {
             let right = right.unwrap();
             assert_eq!(right.token(), &Token::Int(l[i].right));
         }
+    }
+
+    #[test]
+    fn test08() {
+        let input = r#"
+                    1 + 2 * 3;
+                "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        println!("{:#?}", root);
+
+        assert_eq!(1, root.statements().len());
+
+        let s = root.statements()[0]
+            .as_any()
+            .downcast_ref::<ast::ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_eq!(s.token(), &Token::Int(1));
+        let v = s
+            .expression()
+            .as_any()
+            .downcast_ref::<ast::BinaryExpressionNode>();
+        assert!(v.is_some());
+        let v = v.unwrap();
+        assert_eq!(v.operator(), &Token::Plus);
+        let left = v.left().as_any().downcast_ref::<ast::IntegerLiteralNode>();
+        assert!(left.is_some());
+        let left = left.unwrap();
+        assert_eq!(left.token(), &Token::Int(1));
+        let right = v
+            .right()
+            .as_any()
+            .downcast_ref::<ast::BinaryExpressionNode>();
+        assert!(right.is_some());
+        let right = right.unwrap();
+        assert_eq!(right.operator(), &Token::Asterisk);
+        let left = right
+            .left()
+            .as_any()
+            .downcast_ref::<ast::IntegerLiteralNode>();
+        let right = right
+            .right()
+            .as_any()
+            .downcast_ref::<ast::IntegerLiteralNode>();
+        assert!(left.is_some());
+        assert!(right.is_some());
+        assert_eq!(left.unwrap().token(), &Token::Int(2));
+        assert_eq!(right.unwrap().token(), &Token::Int(3));
+    }
+
+    #[test]
+    fn test09() {
+        let input = r#"
+                    (1 + 2) * 3;
+                "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        println!("{:#?}", root);
+
+        assert_eq!(1, root.statements().len());
+
+        let s = root.statements()[0]
+            .as_any()
+            .downcast_ref::<ast::ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_eq!(s.token(), &Token::Lparen);
+        let v = s
+            .expression()
+            .as_any()
+            .downcast_ref::<ast::BinaryExpressionNode>();
+        assert!(v.is_some());
+        let v = v.unwrap();
+        assert_eq!(v.operator(), &Token::Asterisk);
+        let left = v.right().as_any().downcast_ref::<ast::IntegerLiteralNode>();
+        assert!(left.is_some());
+        let left = left.unwrap();
+        assert_eq!(left.token(), &Token::Int(3));
+        let right = v
+            .left()
+            .as_any()
+            .downcast_ref::<ast::BinaryExpressionNode>();
+        assert!(right.is_some());
+        let right = right.unwrap();
+        assert_eq!(right.operator(), &Token::Plus);
+        let left = right
+            .left()
+            .as_any()
+            .downcast_ref::<ast::IntegerLiteralNode>();
+        let right = right
+            .right()
+            .as_any()
+            .downcast_ref::<ast::IntegerLiteralNode>();
+        assert!(left.is_some());
+        assert!(right.is_some());
+        assert_eq!(left.unwrap().token(), &Token::Int(1));
+        assert_eq!(right.unwrap().token(), &Token::Int(2));
     }
 }
