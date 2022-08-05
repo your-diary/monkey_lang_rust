@@ -244,6 +244,7 @@ impl Parser {
     }
 
     fn parse_if_expression(&mut self) -> Option<IfExpressionNode> {
+        //if
         if !self.expect_and_peek(Token::Lparen) {
             return None;
         }
@@ -256,7 +257,16 @@ impl Parser {
             return None;
         }
         let ifValue = self.parse_block_statement()?;
-        Some(IfExpressionNode::new(condition, ifValue, None))
+
+        //else
+        let elseValue = match self.expect_and_peek(Token::Else) {
+            false => None,
+            true => match self.expect_and_peek(Token::Lbrace) {
+                false => None,
+                true => self.parse_block_statement(),
+            },
+        };
+        Some(IfExpressionNode::new(condition, ifValue, elseValue))
     }
 
     fn parse_block_statement(&mut self) -> Option<BlockStatementNode> {
@@ -665,8 +675,96 @@ mod tests {
     #[test]
     fn test10() {
         let input = r#"
-                    if (x < y) { x }
+                    if (x < y) { x }; 5;
                 "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        println!("{:#?}", root);
+
+        assert_eq!(2, root.statements().len());
+
+        let s = root.statements()[0]
+            .as_any()
+            .downcast_ref::<ast::ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_eq!(s.token(), &Token::If);
+
+        let v = s
+            .expression()
+            .as_any()
+            .downcast_ref::<ast::IfExpressionNode>();
+        assert!(v.is_some());
+        let v = v.unwrap();
+        assert_eq!(v.token(), &Token::If);
+
+        let condition = v
+            .condition()
+            .as_any()
+            .downcast_ref::<ast::BinaryExpressionNode>();
+        assert!(condition.is_some());
+        let condition = condition.unwrap();
+        assert_eq!(condition.operator(), &Token::Lt);
+        let left = condition
+            .left()
+            .as_any()
+            .downcast_ref::<ast::IdentifierNode>();
+        assert!(left.is_some());
+        let left = left.unwrap();
+        assert_eq!(left.token(), &Token::Ident("x".to_string()));
+        let right = condition
+            .right()
+            .as_any()
+            .downcast_ref::<ast::IdentifierNode>();
+        assert!(right.is_some());
+        let right = right.unwrap();
+        assert_eq!(right.token(), &Token::Ident("y".to_string()));
+
+        assert!(v.elseValue().is_none());
+
+        let ifValue = v.ifValue();
+        assert_eq!(ifValue.token(), &Token::Lbrace);
+        let l = ifValue.statements();
+        assert_eq!(1, l.len());
+        let n = l[0].as_any().downcast_ref::<ast::ExpressionStatementNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_eq!(n.token(), &Token::Ident("x".to_string()));
+        let e = n
+            .expression()
+            .as_any()
+            .downcast_ref::<ast::IdentifierNode>();
+        assert!(e.is_some());
+        let e = e.unwrap();
+        assert_eq!(e.token(), &Token::Ident("x".to_string()));
+
+        let s = root.statements()[1]
+            .as_any()
+            .downcast_ref::<ast::ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_eq!(s.token(), &Token::Int(5));
+        let v = s
+            .expression()
+            .as_any()
+            .downcast_ref::<ast::IntegerLiteralNode>();
+        assert!(v.is_some());
+        let v = v.unwrap();
+        assert_eq!(v.token(), &Token::Int(5));
+    }
+
+    #[test]
+    fn test11() {
+        let input = r#"
+                        if (x < y) {
+                            x
+                        } else {
+                            3;
+                            4;
+                        };
+                    "#;
 
         let mut parser = Parser::new(get_tokens(input));
 
@@ -712,11 +810,55 @@ mod tests {
         let right = right.unwrap();
         assert_eq!(right.token(), &Token::Ident("y".to_string()));
 
-        assert!(v.elseValue().is_none());
-
         let ifValue = v.ifValue();
         assert_eq!(ifValue.token(), &Token::Lbrace);
         let l = ifValue.statements();
         assert_eq!(1, l.len());
+        let n = l[0].as_any().downcast_ref::<ast::ExpressionStatementNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_eq!(n.token(), &Token::Ident("x".to_string()));
+        let e = n
+            .expression()
+            .as_any()
+            .downcast_ref::<ast::IdentifierNode>();
+        assert!(e.is_some());
+        let e = e.unwrap();
+        assert_eq!(e.token(), &Token::Ident("x".to_string()));
+
+        let elseValue = v.elseValue();
+        assert!(elseValue.is_some());
+        match elseValue {
+            None => (),
+            Some(elseValue) => {
+                assert_eq!(elseValue.token(), &Token::Lbrace);
+                let l = elseValue.statements();
+                assert_eq!(2, l.len());
+
+                let n = l[0].as_any().downcast_ref::<ast::ExpressionStatementNode>();
+                assert!(n.is_some());
+                let n = n.unwrap();
+                assert_eq!(n.token(), &Token::Int(3));
+                let e = n
+                    .expression()
+                    .as_any()
+                    .downcast_ref::<ast::IntegerLiteralNode>();
+                assert!(e.is_some());
+                let e = e.unwrap();
+                assert_eq!(e.token(), &Token::Int(3));
+
+                let n = l[1].as_any().downcast_ref::<ast::ExpressionStatementNode>();
+                assert!(n.is_some());
+                let n = n.unwrap();
+                assert_eq!(n.token(), &Token::Int(4));
+                let e = n
+                    .expression()
+                    .as_any()
+                    .downcast_ref::<ast::IntegerLiteralNode>();
+                assert!(e.is_some());
+                let e = e.unwrap();
+                assert_eq!(e.token(), &Token::Int(4));
+            }
+        }
     }
 }
