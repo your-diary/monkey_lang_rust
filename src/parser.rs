@@ -256,17 +256,17 @@ impl Parser {
         if !self.expect_and_peek(Token::Lbrace) {
             return None;
         }
-        let ifValue = self.parse_block_statement()?;
+        let if_value = self.parse_block_statement()?;
 
         //else
-        let elseValue = match self.expect_and_peek(Token::Else) {
+        let else_value = match self.expect_and_peek(Token::Else) {
             false => None,
             true => match self.expect_and_peek(Token::Lbrace) {
                 false => None,
                 true => self.parse_block_statement(),
             },
         };
-        Some(IfExpressionNode::new(condition, ifValue, elseValue))
+        Some(IfExpressionNode::new(condition, if_value, else_value))
     }
 
     fn parse_block_statement(&mut self) -> Option<BlockStatementNode> {
@@ -722,11 +722,11 @@ mod tests {
         let right = right.unwrap();
         assert_eq!(right.token(), &Token::Ident("y".to_string()));
 
-        assert!(v.elseValue().is_none());
+        assert!(v.else_value().is_none());
 
-        let ifValue = v.ifValue();
-        assert_eq!(ifValue.token(), &Token::Lbrace);
-        let l = ifValue.statements();
+        let if_value = v.if_value();
+        assert_eq!(if_value.token(), &Token::Lbrace);
+        let l = if_value.statements();
         assert_eq!(1, l.len());
         let n = l[0].as_any().downcast_ref::<ast::ExpressionStatementNode>();
         assert!(n.is_some());
@@ -810,9 +810,9 @@ mod tests {
         let right = right.unwrap();
         assert_eq!(right.token(), &Token::Ident("y".to_string()));
 
-        let ifValue = v.ifValue();
-        assert_eq!(ifValue.token(), &Token::Lbrace);
-        let l = ifValue.statements();
+        let if_value = v.if_value();
+        assert_eq!(if_value.token(), &Token::Lbrace);
+        let l = if_value.statements();
         assert_eq!(1, l.len());
         let n = l[0].as_any().downcast_ref::<ast::ExpressionStatementNode>();
         assert!(n.is_some());
@@ -826,13 +826,13 @@ mod tests {
         let e = e.unwrap();
         assert_eq!(e.token(), &Token::Ident("x".to_string()));
 
-        let elseValue = v.elseValue();
-        assert!(elseValue.is_some());
-        match elseValue {
+        let else_value = v.else_value();
+        assert!(else_value.is_some());
+        match else_value {
             None => (),
-            Some(elseValue) => {
-                assert_eq!(elseValue.token(), &Token::Lbrace);
-                let l = elseValue.statements();
+            Some(else_value) => {
+                assert_eq!(else_value.token(), &Token::Lbrace);
+                let l = else_value.statements();
                 assert_eq!(2, l.len());
 
                 let n = l[0].as_any().downcast_ref::<ast::ExpressionStatementNode>();

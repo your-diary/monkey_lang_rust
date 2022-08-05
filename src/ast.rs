@@ -175,8 +175,8 @@ impl BinaryExpressionNode {
 pub struct IfExpressionNode {
     token: Token,
     condition: Box<dyn ExpressionNode>,
-    ifValue: BlockStatementNode,
-    elseValue: Option<BlockStatementNode>,
+    if_value: BlockStatementNode,
+    else_value: Option<BlockStatementNode>,
 }
 
 impl Node for IfExpressionNode {
@@ -190,14 +190,14 @@ impl ExpressionNode for IfExpressionNode {}
 impl IfExpressionNode {
     pub fn new(
         condition: Box<dyn ExpressionNode>,
-        ifValue: BlockStatementNode,
-        elseValue: Option<BlockStatementNode>,
+        if_value: BlockStatementNode,
+        else_value: Option<BlockStatementNode>,
     ) -> Self {
         IfExpressionNode {
             token: Token::If,
             condition,
-            ifValue,
-            elseValue,
+            if_value,
+            else_value,
         }
     }
     pub fn token(&self) -> &Token {
@@ -206,11 +206,11 @@ impl IfExpressionNode {
     pub fn condition(&self) -> &dyn ExpressionNode {
         self.condition.as_ref()
     }
-    pub fn ifValue(&self) -> &BlockStatementNode {
-        &self.ifValue
+    pub fn if_value(&self) -> &BlockStatementNode {
+        &self.if_value
     }
-    pub fn elseValue(&self) -> &Option<BlockStatementNode> {
-        &self.elseValue
+    pub fn else_value(&self) -> &Option<BlockStatementNode> {
+        &self.else_value
     }
 }
 
