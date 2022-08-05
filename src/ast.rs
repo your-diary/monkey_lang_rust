@@ -43,6 +43,40 @@ impl RootNode {
 /*-------------------------------------*/
 
 #[derive(Debug)]
+pub struct BlockStatementNode {
+    token: Token,
+    statements: Vec<Box<dyn StatementNode>>,
+}
+
+impl Node for BlockStatementNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl StatementNode for BlockStatementNode {}
+
+impl BlockStatementNode {
+    pub fn new() -> Self {
+        BlockStatementNode {
+            token: Token::Lbrace,
+            statements: Vec::new(),
+        }
+    }
+    pub fn token(&self) -> &Token {
+        &self.token
+    }
+    pub fn statements(&self) -> &Vec<Box<dyn StatementNode>> {
+        &self.statements
+    }
+    pub fn statements_mut(&mut self) -> &mut Vec<Box<dyn StatementNode>> {
+        &mut self.statements
+    }
+}
+
+/*-------------------------------------*/
+
+#[derive(Debug)]
 pub struct IdentifierNode {
     token: Token,
 }
@@ -132,6 +166,51 @@ impl BinaryExpressionNode {
     }
     pub fn right(&self) -> &dyn ExpressionNode {
         self.right.as_ref()
+    }
+}
+
+/*-------------------------------------*/
+
+#[derive(Debug)]
+pub struct IfExpressionNode {
+    token: Token,
+    condition: Box<dyn ExpressionNode>,
+    ifValue: BlockStatementNode,
+    elseValue: Option<BlockStatementNode>,
+}
+
+impl Node for IfExpressionNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ExpressionNode for IfExpressionNode {}
+
+impl IfExpressionNode {
+    pub fn new(
+        condition: Box<dyn ExpressionNode>,
+        ifValue: BlockStatementNode,
+        elseValue: Option<BlockStatementNode>,
+    ) -> Self {
+        IfExpressionNode {
+            token: Token::If,
+            condition,
+            ifValue,
+            elseValue,
+        }
+    }
+    pub fn token(&self) -> &Token {
+        &self.token
+    }
+    pub fn condition(&self) -> &dyn ExpressionNode {
+        self.condition.as_ref()
+    }
+    pub fn ifValue(&self) -> &BlockStatementNode {
+        &self.ifValue
+    }
+    pub fn elseValue(&self) -> &Option<BlockStatementNode> {
+        &self.elseValue
     }
 }
 
