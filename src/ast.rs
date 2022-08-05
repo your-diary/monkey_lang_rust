@@ -162,6 +162,30 @@ impl IntegerLiteralNode {
 /*-------------------------------------*/
 
 #[derive(Debug)]
+pub struct BooleanLiteralNode {
+    token: Token,
+}
+
+impl Node for BooleanLiteralNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ExpressionNode for BooleanLiteralNode {}
+
+impl BooleanLiteralNode {
+    pub fn new(token: Token) -> Self {
+        BooleanLiteralNode { token }
+    }
+    pub fn token(&self) -> &Token {
+        &self.token
+    }
+}
+
+/*-------------------------------------*/
+
+#[derive(Debug)]
 pub struct LetStatementNode {
     token: Token,
     identifier: IdentifierNode,

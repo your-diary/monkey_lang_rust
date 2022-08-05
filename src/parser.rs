@@ -153,6 +153,8 @@ impl Parser {
             Some(Token::Int(_)) => self.parse_integer_literal().map(|e| Box::new(e) as _),
             Some(Token::Invert) => self.parse_unary_expression().map(|e| Box::new(e) as _),
             Some(Token::Minus) => self.parse_unary_expression().map(|e| Box::new(e) as _),
+            Some(Token::True) => self.parse_boolean_literal().map(|e| Box::new(e) as _),
+            Some(Token::False) => self.parse_boolean_literal().map(|e| Box::new(e) as _),
             _ => None,
         }?;
         loop {
@@ -187,6 +189,13 @@ impl Parser {
         self.tokens
             .get(self.index)
             .map(|e| IntegerLiteralNode::new(e.clone()))
+    }
+
+    fn parse_boolean_literal(&self) -> Option<BooleanLiteralNode> {
+        //TODO
+        self.tokens
+            .get(self.index)
+            .map(|e| BooleanLiteralNode::new(e.clone()))
     }
 
     fn parse_unary_expression(&mut self) -> Option<UnaryExpressionNode> {
@@ -351,6 +360,38 @@ mod tests {
     #[test]
     fn test05() {
         let input = r#"
+                true;
+                false;
+            "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let l = vec![Token::True, Token::False];
+
+        let root = parser.parse();
+
+        assert_eq!(2, root.statements().len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ast::ExpressionStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_eq!(s.token(), &l[i]);
+            let v = s
+                .expression()
+                .as_any()
+                .downcast_ref::<ast::BooleanLiteralNode>();
+            assert!(v.is_some());
+            let v = v.unwrap();
+            assert_eq!(v.token(), &l[i]);
+        }
+    }
+
+    #[test]
+    fn test06() {
+        let input = r#"
                     !5;
                     -15;
                 "#;
@@ -401,7 +442,7 @@ mod tests {
     }
 
     #[test]
-    fn test06() {
+    fn test07() {
         let input = r#"
                     1 + 2;
                     1 - 2;
