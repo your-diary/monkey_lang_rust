@@ -1,10 +1,11 @@
 use std::any::Any;
+use std::fmt::Debug;
 
 use super::token::Token;
 
 /*-------------------------------------*/
 
-pub trait Node {
+pub trait Node: Debug {
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -14,6 +15,7 @@ pub trait ExpressionNode: Node {}
 
 /*-------------------------------------*/
 
+#[derive(Debug)]
 pub struct RootNode {
     statements: Vec<Box<dyn StatementNode>>,
 }
@@ -40,6 +42,7 @@ impl RootNode {
 
 /*-------------------------------------*/
 
+#[derive(Debug)]
 pub struct IdentifierNode {
     token: Token,
 }
@@ -63,6 +66,7 @@ impl IdentifierNode {
 
 /*-------------------------------------*/
 
+#[derive(Debug)]
 pub struct UnaryExpressionNode {
     operator: Token,
     expression: Box<dyn ExpressionNode>,
@@ -93,6 +97,7 @@ impl UnaryExpressionNode {
 
 /*-------------------------------------*/
 
+#[derive(Debug)]
 pub struct BinaryExpressionNode {
     operator: Token,
     left: Box<dyn ExpressionNode>,
@@ -132,6 +137,7 @@ impl BinaryExpressionNode {
 
 /*-------------------------------------*/
 
+#[derive(Debug)]
 pub struct IntegerLiteralNode {
     token: Token,
 }
@@ -155,6 +161,7 @@ impl IntegerLiteralNode {
 
 /*-------------------------------------*/
 
+#[derive(Debug)]
 pub struct LetStatementNode {
     token: Token,
     identifier: IdentifierNode,
@@ -190,6 +197,7 @@ impl LetStatementNode {
 
 /*-------------------------------------*/
 
+#[derive(Debug)]
 pub struct ReturnStatementNode {
     token: Token,
     expression: Box<dyn ExpressionNode>,
@@ -220,6 +228,7 @@ impl ReturnStatementNode {
 
 /*-------------------------------------*/
 
+#[derive(Debug)]
 pub struct ExpressionStatementNode {
     token: Token, //first token of an expression
     expression: Box<dyn ExpressionNode>,
