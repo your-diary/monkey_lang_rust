@@ -11,7 +11,7 @@ enum Precedence {
     Sum,         //`+`
     Product,     //`*`
     Unary,       //`-`, `!`
-    Call,        //`f()`
+    Call,        //`(` in `f()`
 }
 
 fn lookup_precedence(token: &Token) -> Precedence {
@@ -28,7 +28,7 @@ fn lookup_precedence(token: &Token) -> Precedence {
         Token::Gt => Precedence::LessGreater,
         // Token::Comma => Precedence::Sum,
         // Token::Semicolon => Precedence::Sum,
-        // Token::Lparen => Precedence::Sum,
+        Token::Lparen => Precedence::Call,
         Token::Rparen => Precedence::Lowest,
         // Token::Lbrace => Precedence::Sum,
         // Token::Rbrace => Precedence::Sum,
@@ -176,8 +176,18 @@ impl Parser {
             {
                 break;
             }
-            self.index += 1;
-            expr = Box::new(self.parse_binary_expression(expr)?) as _;
+            expr = match next_token {
+                Token::Lparen => {
+                    expr.as_any().downcast_ref::<IdentifierNode>()?;
+                    let function = self.parse_identifier().unwrap();
+                    self.index += 1;
+                    Box::new(self.parse_call_expression(function)?) as _
+                }
+                _ => {
+                    self.index += 1;
+                    Box::new(self.parse_binary_expression(expr)?) as _
+                }
+            };
         }
         Some(expr)
     }
@@ -281,13 +291,14 @@ impl Parser {
         Some(IfExpressionNode::new(condition, if_value, else_value))
     }
 
+    //✅
     //fn (<parameter(s)>) { <statement(s)> }
     //
     //Examples of parameters:
     // ()
     // (a)
     // (a, b)
-    fn parse_function_literal(&mut self) -> Option<FunctionExpressionNode> {
+    fn parse_function_literal(&mut self) -> Option<FunctionLiteralNode> {
         if !self.expect_and_peek(Token::Lparen) {
             return None;
         }
@@ -306,10 +317,31 @@ impl Parser {
         if !self.expect_and_peek(Token::Lbrace) {
             return None;
         }
-        Some(FunctionExpressionNode::new(
+        Some(FunctionLiteralNode::new(
             parameters,
             self.parse_block_statement()?,
         ))
+    }
+
+    //<function name>(<argument(s)>)
+    //
+    //Examples of arguments:
+    // ()
+    // (a)
+    // (a, b * c)
+    fn parse_call_expression(&mut self, function: IdentifierNode) -> Option<CallExpressionNode> {
+        let mut arguments = Vec::new();
+        loop {
+            self.index += 1;
+            match self.tokens.get(self.index)? {
+                Token::Rparen => break,
+                _ => {
+                    arguments.push(self.parse_expression(Precedence::Lowest)?);
+                    self.expect_and_peek(Token::Comma); //consumes a comma if exists
+                }
+            }
+        }
+        Some(CallExpressionNode::new(function, arguments))
     }
 }
 
@@ -818,8 +850,6 @@ mod tests {
         let root = root.unwrap();
         println!("{:#?}", root);
 
-        let parameters = vec!["x", "y"];
-
         assert_eq!(3, root.statements().len());
 
         for i in 0..root.statements().len() {
@@ -833,7 +863,7 @@ mod tests {
             let v = s
                 .expression()
                 .as_any()
-                .downcast_ref::<FunctionExpressionNode>();
+                .downcast_ref::<FunctionLiteralNode>();
             assert!(v.is_some());
             let v = v.unwrap();
             assert_eq!(v.token(), &Token::Function);
@@ -856,6 +886,46 @@ mod tests {
             let s = s.unwrap();
             assert_eq!(s.token(), &Token::Return);
             assert_binary_expression_2(s.expression(), &Token::Plus, "x", "y");
+        }
+    }
+
+    #[test]
+    fn test13() {
+        let input = r#"
+            f()
+            f(a)
+            f(a, 3 + 4)
+                "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_some());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(3, root.statements().len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ExpressionStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_eq!(s.token(), &Token::Ident("f".to_string()));
+
+            let v = s.expression().as_any().downcast_ref::<CallExpressionNode>();
+            assert!(v.is_some());
+            let v = v.unwrap();
+            assert_identifier(v.function(), "f");
+
+            assert_eq!(i, v.arguments().len());
+            if (i >= 1) {
+                assert_identifier(v.arguments()[0].as_ref(), "a");
+            }
+            if (i == 2) {
+                assert_binary_expression(v.arguments()[1].as_ref(), &Token::Plus, 3, 4);
+            }
         }
     }
 }

@@ -40,6 +40,12 @@ impl RootNode {
     }
 }
 
+impl Default for RootNode {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /*-------------------------------------*/
 
 #[derive(Debug)]
@@ -71,6 +77,12 @@ impl BlockStatementNode {
     }
     pub fn statements_mut(&mut self) -> &mut Vec<Box<dyn StatementNode>> {
         &mut self.statements
+    }
+}
+
+impl Default for BlockStatementNode {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -172,6 +184,37 @@ impl BinaryExpressionNode {
 /*-------------------------------------*/
 
 #[derive(Debug)]
+pub struct CallExpressionNode {
+    function: IdentifierNode,
+    arguments: Vec<Box<dyn ExpressionNode>>,
+}
+
+impl Node for CallExpressionNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ExpressionNode for CallExpressionNode {}
+
+impl CallExpressionNode {
+    pub fn new(function: IdentifierNode, arguments: Vec<Box<dyn ExpressionNode>>) -> Self {
+        CallExpressionNode {
+            function,
+            arguments,
+        }
+    }
+    pub fn function(&self) -> &IdentifierNode {
+        &self.function
+    }
+    pub fn arguments(&self) -> &Vec<Box<dyn ExpressionNode>> {
+        &self.arguments
+    }
+}
+
+/*-------------------------------------*/
+
+#[derive(Debug)]
 pub struct IfExpressionNode {
     token: Token,
     condition: Box<dyn ExpressionNode>,
@@ -265,23 +308,23 @@ impl BooleanLiteralNode {
 /*-------------------------------------*/
 
 #[derive(Debug)]
-pub struct FunctionExpressionNode {
+pub struct FunctionLiteralNode {
     token: Token,
     parameters: Vec<IdentifierNode>,
     body: BlockStatementNode,
 }
 
-impl Node for FunctionExpressionNode {
+impl Node for FunctionLiteralNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl ExpressionNode for FunctionExpressionNode {}
+impl ExpressionNode for FunctionLiteralNode {}
 
-impl FunctionExpressionNode {
+impl FunctionLiteralNode {
     pub fn new(parameters: Vec<IdentifierNode>, body: BlockStatementNode) -> Self {
-        FunctionExpressionNode {
+        FunctionLiteralNode {
             token: Token::Function,
             parameters,
             body,
