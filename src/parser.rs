@@ -178,6 +178,9 @@ impl Parser {
             }
             expr = match next_token {
                 Token::Lparen => {
+                    //HACK: We assert `expr` is of type `IdentifierNode` and then re-parse the current node
+                    // as `IdentifierNode`. If possible, we should convert `expr` to `IdentifierNode`
+                    // directly.
                     expr.as_any().downcast_ref::<IdentifierNode>()?;
                     let function = self.parse_identifier().unwrap();
                     self.index += 1;
@@ -263,6 +266,29 @@ impl Parser {
         }
     }
 
+    //<function name>(<argument(s)>)
+    //
+    //The last <argument> can optionally be followed by a comma (e.g. `(a, b,)`).
+    //
+    //Examples of arguments:
+    // ()
+    // (a)
+    // (a, b * c)
+    fn parse_call_expression(&mut self, function: IdentifierNode) -> Option<CallExpressionNode> {
+        let mut arguments = Vec::new();
+        loop {
+            self.index += 1;
+            match self.tokens.get(self.index)? {
+                Token::Rparen => break,
+                _ => {
+                    arguments.push(self.parse_expression(Precedence::Lowest)?);
+                    self.expect_and_peek(Token::Comma); //consumes a comma if exists
+                }
+            }
+        }
+        Some(CallExpressionNode::new(function, arguments))
+    }
+
     //✅
     //if (<expression>) { <statement(s)> } [else { <statement(s)> }]
     fn parse_if_expression(&mut self) -> Option<IfExpressionNode> {
@@ -294,6 +320,8 @@ impl Parser {
     //✅
     //fn (<parameter(s)>) { <statement(s)> }
     //
+    //The last <argument> can optionally be followed by a comma (e.g. `(a, b,)`).
+    //
     //Examples of parameters:
     // ()
     // (a)
@@ -321,27 +349,6 @@ impl Parser {
             parameters,
             self.parse_block_statement()?,
         ))
-    }
-
-    //<function name>(<argument(s)>)
-    //
-    //Examples of arguments:
-    // ()
-    // (a)
-    // (a, b * c)
-    fn parse_call_expression(&mut self, function: IdentifierNode) -> Option<CallExpressionNode> {
-        let mut arguments = Vec::new();
-        loop {
-            self.index += 1;
-            match self.tokens.get(self.index)? {
-                Token::Rparen => break,
-                _ => {
-                    arguments.push(self.parse_expression(Precedence::Lowest)?);
-                    self.expect_and_peek(Token::Comma); //consumes a comma if exists
-                }
-            }
-        }
-        Some(CallExpressionNode::new(function, arguments))
     }
 }
 
@@ -838,7 +845,7 @@ mod tests {
                     fn (x) {
                         return x + y;
                     }
-                    fn (x, y) {
+                    fn (x, y,) {
                         return x + y;
                     }
                 "#;
@@ -894,7 +901,7 @@ mod tests {
         let input = r#"
             f()
             f(a)
-            f(a, 3 + 4)
+            f(a, 3 + 4,)
                 "#;
 
         let mut parser = Parser::new(get_tokens(input));
