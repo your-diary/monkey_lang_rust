@@ -5,13 +5,24 @@ use super::token::Token;
 
 /*-------------------------------------*/
 
-pub trait Node: Debug {
+pub trait Node: Base + Debug {
     fn as_any(&self) -> &dyn Any;
 }
 
 pub trait StatementNode: Node {}
 
 pub trait ExpressionNode: Node {}
+
+//for upcasting
+//ref: |https://stackoverflow.com/questions/28632968/why-doesnt-rust-support-trait-object-upcasting|
+pub trait Base {
+    fn as_node(&self) -> &dyn Node;
+}
+impl<T: Node> Base for T {
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
+}
 
 /*-------------------------------------*/
 
