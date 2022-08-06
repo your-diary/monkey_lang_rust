@@ -77,6 +77,7 @@ impl Parser {
     fn parse_statement(&mut self) -> Option<Box<dyn StatementNode>> {
         match self.tokens.get(self.index) {
             None => None,
+            Some(Token::Lbrace) => self.parse_block_statement().map(|e| Box::new(e) as _),
             Some(Token::Let) => self.parse_let_statement().map(|e| Box::new(e) as _),
             Some(Token::Return) => self.parse_return_statement().map(|e| Box::new(e) as _),
             Some(_) => self.parse_expression_statement().map(|e| Box::new(e) as _),
