@@ -163,6 +163,7 @@ impl Parser {
             Some(Token::Invert) => self.parse_unary_expression().map(|e| Box::new(e) as _),
             Some(Token::Minus) => self.parse_unary_expression().map(|e| Box::new(e) as _),
             Some(Token::If) => self.parse_if_expression().map(|e| Box::new(e) as _),
+            Some(Token::Function) => self.parse_function_literal().map(|e| Box::new(e) as _),
             Some(Token::True) => self.parse_boolean_literal().map(|e| Box::new(e) as _),
             Some(Token::False) => self.parse_boolean_literal().map(|e| Box::new(e) as _),
             _ => None,
@@ -278,6 +279,37 @@ impl Parser {
             },
         };
         Some(IfExpressionNode::new(condition, if_value, else_value))
+    }
+
+    //fn (<parameter(s)>) { <statement(s)> }
+    //
+    //Examples of parameters:
+    // ()
+    // (a)
+    // (a, b)
+    fn parse_function_literal(&mut self) -> Option<FunctionExpressionNode> {
+        if !self.expect_and_peek(Token::Lparen) {
+            return None;
+        }
+        let mut parameters = Vec::new();
+        loop {
+            self.index += 1;
+            match self.tokens.get(self.index)? {
+                Token::Rparen => break,
+                Token::Ident(_) => {
+                    parameters.push(self.parse_identifier()?);
+                    self.expect_and_peek(Token::Comma); //consumes a comma if exists
+                }
+                _ => return None,
+            }
+        }
+        if !self.expect_and_peek(Token::Lbrace) {
+            return None;
+        }
+        Some(FunctionExpressionNode::new(
+            parameters,
+            self.parse_block_statement()?,
+        ))
     }
 }
 
@@ -762,6 +794,68 @@ mod tests {
                 assert_eq!(n.token(), &Token::Int(4));
                 assert_integer_literal(n.expression(), 4);
             }
+        }
+    }
+
+    #[test]
+    fn test12() {
+        let input = r#"
+                    fn () {
+                        return x + y;
+                    }
+                    fn (x) {
+                        return x + y;
+                    }
+                    fn (x, y) {
+                        return x + y;
+                    }
+                "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_some());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        let parameters = vec!["x", "y"];
+
+        assert_eq!(3, root.statements().len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ExpressionStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_eq!(s.token(), &Token::Function);
+
+            let v = s
+                .expression()
+                .as_any()
+                .downcast_ref::<FunctionExpressionNode>();
+            assert!(v.is_some());
+            let v = v.unwrap();
+            assert_eq!(v.token(), &Token::Function);
+
+            assert_eq!(i, v.parameters().len());
+            if (i >= 1) {
+                assert_identifier(&v.parameters()[0], "x");
+            }
+            if (i == 2) {
+                assert_identifier(&v.parameters()[1], "y");
+            }
+
+            let s = v.body();
+            assert_eq!(s.token(), &Token::Lbrace);
+            assert_eq!(1, s.statements().len());
+            let s = v.body().statements()[0]
+                .as_any()
+                .downcast_ref::<ReturnStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_eq!(s.token(), &Token::Return);
+            assert_binary_expression_2(s.expression(), &Token::Plus, "x", "y");
         }
     }
 }

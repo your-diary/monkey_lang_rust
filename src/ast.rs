@@ -265,6 +265,42 @@ impl BooleanLiteralNode {
 /*-------------------------------------*/
 
 #[derive(Debug)]
+pub struct FunctionExpressionNode {
+    token: Token,
+    parameters: Vec<IdentifierNode>,
+    body: BlockStatementNode,
+}
+
+impl Node for FunctionExpressionNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ExpressionNode for FunctionExpressionNode {}
+
+impl FunctionExpressionNode {
+    pub fn new(parameters: Vec<IdentifierNode>, body: BlockStatementNode) -> Self {
+        FunctionExpressionNode {
+            token: Token::Function,
+            parameters,
+            body,
+        }
+    }
+    pub fn token(&self) -> &Token {
+        &self.token
+    }
+    pub fn parameters(&self) -> &Vec<IdentifierNode> {
+        &self.parameters
+    }
+    pub fn body(&self) -> &BlockStatementNode {
+        &self.body
+    }
+}
+
+/*-------------------------------------*/
+
+#[derive(Debug)]
 pub struct LetStatementNode {
     token: Token,
     identifier: IdentifierNode,
