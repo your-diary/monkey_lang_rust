@@ -15,6 +15,7 @@ enum Precedence {
 }
 
 fn lookup_precedence(token: &Token) -> Precedence {
+    //TODO remove comments
     match token {
         // Token::Assign => Precedence::Sum,
         Token::Plus => Precedence::Sum,
@@ -176,20 +177,10 @@ impl Parser {
             {
                 break;
             }
+            self.index += 1;
             expr = match next_token {
-                Token::Lparen => {
-                    //HACK: We assert `expr` is of type `IdentifierNode` and then re-parse the current node
-                    // as `IdentifierNode`. If possible, we should convert `expr` to `IdentifierNode`
-                    // directly.
-                    expr.as_any().downcast_ref::<IdentifierNode>()?;
-                    let function = self.parse_identifier().unwrap();
-                    self.index += 1;
-                    Box::new(self.parse_call_expression(function)?) as _
-                }
-                _ => {
-                    self.index += 1;
-                    Box::new(self.parse_binary_expression(expr)?) as _
-                }
+                Token::Lparen => Box::new(self.parse_call_expression(expr)?) as _,
+                _ => Box::new(self.parse_binary_expression(expr)?) as _,
             };
         }
         Some(expr)
@@ -274,7 +265,10 @@ impl Parser {
     // ()
     // (a)
     // (a, b * c)
-    fn parse_call_expression(&mut self, function: IdentifierNode) -> Option<CallExpressionNode> {
+    fn parse_call_expression(
+        &mut self,
+        function: Box<dyn ExpressionNode>,
+    ) -> Option<CallExpressionNode> {
         let mut arguments = Vec::new();
         loop {
             self.index += 1;

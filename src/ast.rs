@@ -185,7 +185,7 @@ impl BinaryExpressionNode {
 
 #[derive(Debug)]
 pub struct CallExpressionNode {
-    function: IdentifierNode,
+    function: Box<dyn ExpressionNode>,
     arguments: Vec<Box<dyn ExpressionNode>>,
 }
 
@@ -198,14 +198,14 @@ impl Node for CallExpressionNode {
 impl ExpressionNode for CallExpressionNode {}
 
 impl CallExpressionNode {
-    pub fn new(function: IdentifierNode, arguments: Vec<Box<dyn ExpressionNode>>) -> Self {
+    pub fn new(function: Box<dyn ExpressionNode>, arguments: Vec<Box<dyn ExpressionNode>>) -> Self {
         CallExpressionNode {
             function,
             arguments,
         }
     }
-    pub fn function(&self) -> &IdentifierNode {
-        &self.function
+    pub fn function(&self) -> &dyn ExpressionNode {
+        self.function.as_ref()
     }
     pub fn arguments(&self) -> &Vec<Box<dyn ExpressionNode>> {
         &self.arguments
