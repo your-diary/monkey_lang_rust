@@ -13,6 +13,10 @@ pub fn eval(node: &dyn Node) -> EvalResult {
         return eval_block_statement_node(n);
     }
 
+    if let Some(n) = node.as_any().downcast_ref::<ReturnStatementNode>() {
+        return eval_return_statement_node(n);
+    }
+
     if let Some(n) = node.as_any().downcast_ref::<ExpressionStatementNode>() {
         return eval_expression_statement_node(n);
     }
@@ -41,11 +45,45 @@ pub fn eval(node: &dyn Node) -> EvalResult {
 }
 
 fn eval_root_node(n: &RootNode) -> EvalResult {
-    eval(n.statements()[0].as_node()) //TODO
+    let mut ret = Box::new(Null::new()) as _;
+    for statement in n.statements() {
+        ret = eval(statement.as_node())?;
+        //early return at the first `return` statement
+        //Note the returned value is the content of `ReturnValue`; not the `ReturnValue` itself.
+        if let Some(e) = ret.as_any().downcast_ref::<ReturnValue>() {
+            return Ok(e.extract());
+        }
+    }
+    Ok(ret)
 }
 
+//similar to `eval_root_node()` but returns `ReturnValue` itself when early return
+//This difference is important to properly handle the following statement:
+// if (true) {
+//     if (true) {
+//         return a;
+//     }
+//     return b;
+// }
+//If we shared the implementations of `eval_root_node()` and `eval_block_statement_node()`, then the result
+// would be `b` rather than `a` as the statement above is evaluated as
+// if (true) {
+//     a;
+//     return b;
+// }
 fn eval_block_statement_node(n: &BlockStatementNode) -> EvalResult {
-    eval(n.statements()[0].as_node()) //TODO
+    let mut ret = Box::new(Null::new()) as _;
+    for statement in n.statements() {
+        ret = eval(statement.as_node())?;
+        if ret.as_any().downcast_ref::<ReturnValue>().is_some() {
+            break;
+        }
+    }
+    Ok(ret)
+}
+
+fn eval_return_statement_node(n: &ReturnStatementNode) -> EvalResult {
+    Ok(Box::new(ReturnValue::new(eval(n.expression().as_node())?)))
 }
 
 fn eval_expression_statement_node(n: &ExpressionStatementNode) -> EvalResult {
@@ -296,5 +334,21 @@ mod tests {
         assert_null(r#" if (false) { 10 } "#);
         assert_boolean(r#" if (true) { false } "#, false);
         assert_integer(r#" if (false) { 10 } else { 20 }"#, 20);
+    }
+
+    #[test]
+    fn test03() {
+        assert_integer(r#" return 10; 15"#, 10);
+        assert_integer(r#" 5; return 2 * 5; 15"#, 10);
+        assert_boolean(r#" return true; false"#, true);
+        assert_integer(
+            r#" if (10 > 1) {
+                    if (10 > 1) {
+                        return 10;
+                    }
+                    return 1;
+                } "#,
+            10,
+        );
     }
 }
