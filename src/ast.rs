@@ -119,6 +119,12 @@ impl IdentifierNode {
     pub fn token(&self) -> &Token {
         &self.token
     }
+    pub fn get_name(&self) -> &str {
+        if let Token::Ident(s) = &self.token {
+            return s;
+        }
+        unreachable!();
+    }
 }
 
 /*-------------------------------------*/

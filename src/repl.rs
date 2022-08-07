@@ -1,5 +1,6 @@
 use std::io::{self, Write};
 
+use super::environment::Environment;
 use super::evaluator;
 use super::lexer::Lexer;
 use super::parser::Parser;
@@ -20,6 +21,7 @@ fn get_tokens(s: &str) -> Vec<Token> {
 }
 
 pub fn start() {
+    let mut env = Environment::new();
     loop {
         print!("\n>> ");
         io::stdout().flush().unwrap();
@@ -42,7 +44,7 @@ pub fn start() {
             }
             Some(e) => {
                 // println!("{:#?}", e);
-                match evaluator::eval(&e) {
+                match evaluator::eval(&e, &mut env) {
                     Ok(e) => println!("{}", e),
                     Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),
                 }

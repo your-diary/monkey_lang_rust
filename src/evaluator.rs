@@ -1,53 +1,63 @@
 use super::ast::*;
+use super::environment::Environment;
 use super::object::*;
 use super::token::Token;
 
 type EvalResult = Result<Box<dyn Object>, String>;
 
-pub fn eval(node: &dyn Node) -> EvalResult {
+pub fn eval(node: &dyn Node, env: &mut Environment) -> EvalResult {
     if let Some(n) = node.as_any().downcast_ref::<RootNode>() {
-        return eval_root_node(n);
+        return eval_root_node(n, env);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<BlockStatementNode>() {
-        return eval_block_statement_node(n);
+        return eval_block_statement_node(n, env);
+    }
+
+    if let Some(n) = node.as_any().downcast_ref::<LetStatementNode>() {
+        return eval_let_statement_node(n, env);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<ReturnStatementNode>() {
-        return eval_return_statement_node(n);
+        return eval_return_statement_node(n, env);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<ExpressionStatementNode>() {
-        return eval_expression_statement_node(n);
+        return eval_expression_statement_node(n, env);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<UnaryExpressionNode>() {
-        return eval_unary_expression_node(n);
+        return eval_unary_expression_node(n, env);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<BinaryExpressionNode>() {
-        return eval_binary_expression_node(n);
+        return eval_binary_expression_node(n, env);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<IfExpressionNode>() {
-        return eval_if_expression_node(n);
+        return eval_if_expression_node(n, env);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<IntegerLiteralNode>() {
-        return eval_integer_literal_node(n);
+        return eval_integer_literal_node(n, env);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<BooleanLiteralNode>() {
-        return eval_boolean_literal_node(n);
+        return eval_boolean_literal_node(n, env);
     }
+
+    //TODO
+    //     if let Some(n) = node.as_any().downcast_ref::<IdentifierNode>() {
+    //         return env.get(n.get_name())?;
+    //     }
 
     Err("not yet implemented".to_string()) //TODO replace it with `unreachable!()`
 }
 
-fn eval_root_node(n: &RootNode) -> EvalResult {
+fn eval_root_node(n: &RootNode, env: &mut Environment) -> EvalResult {
     let mut ret = Box::new(Null::new()) as _;
     for statement in n.statements() {
-        ret = eval(statement.as_node())?;
+        ret = eval(statement.as_node(), env)?;
         //early return at the first `return` statement
         //Note the returned value is the content of `ReturnValue`; not the `ReturnValue` itself.
         if let Some(e) = ret.as_any().downcast_ref::<ReturnValue>() {
@@ -71,10 +81,10 @@ fn eval_root_node(n: &RootNode) -> EvalResult {
 //     a;
 //     return b;
 // }
-fn eval_block_statement_node(n: &BlockStatementNode) -> EvalResult {
+fn eval_block_statement_node(n: &BlockStatementNode, env: &mut Environment) -> EvalResult {
     let mut ret = Box::new(Null::new()) as _;
     for statement in n.statements() {
-        ret = eval(statement.as_node())?;
+        ret = eval(statement.as_node(), env)?;
         if ret.as_any().downcast_ref::<ReturnValue>().is_some() {
             break;
         }
@@ -82,25 +92,37 @@ fn eval_block_statement_node(n: &BlockStatementNode) -> EvalResult {
     Ok(ret)
 }
 
-fn eval_return_statement_node(n: &ReturnStatementNode) -> EvalResult {
-    Ok(Box::new(ReturnValue::new(eval(n.expression().as_node())?)))
+fn eval_let_statement_node(n: &LetStatementNode, env: &mut Environment) -> EvalResult {
+    let o = eval(n.expression().as_node(), env)?;
+    env.set(n.identifier().get_name().to_string(), o);
+    Ok(Box::new(Null::new()))
 }
 
-fn eval_expression_statement_node(n: &ExpressionStatementNode) -> EvalResult {
-    eval(n.expression().as_node())
+fn eval_return_statement_node(n: &ReturnStatementNode, env: &mut Environment) -> EvalResult {
+    Ok(Box::new(ReturnValue::new(eval(
+        n.expression().as_node(),
+        env,
+    )?)))
 }
 
-fn eval_unary_expression_node(n: &UnaryExpressionNode) -> EvalResult {
+fn eval_expression_statement_node(
+    n: &ExpressionStatementNode,
+    env: &mut Environment,
+) -> EvalResult {
+    eval(n.expression().as_node(), env)
+}
+
+fn eval_unary_expression_node(n: &UnaryExpressionNode, env: &mut Environment) -> EvalResult {
     match n.operator() {
         Token::Minus => {
-            let o = eval(n.expression().as_node())?;
+            let o = eval(n.expression().as_node(), env)?;
             if let Some(o) = o.as_any().downcast_ref::<Integer>() {
                 return Ok(Box::new(Integer::new(-o.value())));
             }
             Err("operand of unary `-` is not a number".to_string())
         }
         Token::Invert => {
-            let o = eval(n.expression().as_node())?;
+            let o = eval(n.expression().as_node(), env)?;
             if let Some(o) = o.as_any().downcast_ref::<Boolean>() {
                 return Ok(Box::new(Boolean::new(!o.value())));
             }
@@ -113,9 +135,9 @@ fn eval_unary_expression_node(n: &UnaryExpressionNode) -> EvalResult {
     }
 }
 
-fn eval_binary_expression_node(n: &BinaryExpressionNode) -> EvalResult {
-    let left = eval(n.left().as_node())?;
-    let right = eval(n.right().as_node())?;
+fn eval_binary_expression_node(n: &BinaryExpressionNode, env: &mut Environment) -> EvalResult {
+    let left = eval(n.left().as_node(), env)?;
+    let right = eval(n.right().as_node(), env)?;
 
     match n.operator() {
         Token::Plus => {
@@ -199,13 +221,13 @@ fn eval_binary_expression_node(n: &BinaryExpressionNode) -> EvalResult {
     }
 }
 
-fn eval_if_expression_node(n: &IfExpressionNode) -> EvalResult {
-    let condition = eval(n.condition().as_node())?;
+fn eval_if_expression_node(n: &IfExpressionNode, env: &mut Environment) -> EvalResult {
+    let condition = eval(n.condition().as_node(), env)?;
     if let Some(condition) = condition.as_any().downcast_ref::<Boolean>() {
         if (condition.value()) {
-            return eval(n.if_value().as_node());
+            return eval(n.if_value().as_node(), env);
         } else if (n.else_value().is_some()) {
-            return eval(n.else_value().as_ref().unwrap().as_node());
+            return eval(n.else_value().as_ref().unwrap().as_node(), env);
         } else {
             return Ok(Box::new(Null::new()));
         }
@@ -213,14 +235,14 @@ fn eval_if_expression_node(n: &IfExpressionNode) -> EvalResult {
     Err("if condition is not a boolean".to_string())
 }
 
-fn eval_integer_literal_node(n: &IntegerLiteralNode) -> EvalResult {
+fn eval_integer_literal_node(n: &IntegerLiteralNode, env: &mut Environment) -> EvalResult {
     match n.token() {
         Token::Int(v) => Ok(Box::new(Integer::new(*v))),
         _ => unreachable!(),
     }
 }
 
-fn eval_boolean_literal_node(n: &BooleanLiteralNode) -> EvalResult {
+fn eval_boolean_literal_node(n: &BooleanLiteralNode, env: &mut Environment) -> EvalResult {
     match n.token() {
         Token::True => Ok(Box::new(Boolean::new(true))),
         Token::False => Ok(Box::new(Boolean::new(false))),
@@ -231,13 +253,15 @@ fn eval_boolean_literal_node(n: &BooleanLiteralNode) -> EvalResult {
 #[cfg(test)]
 mod tests {
 
+    use super::super::environment::Environment;
     use super::super::lexer::Lexer;
     use super::super::object::*;
     use super::super::parser::Parser;
     use super::super::token::Token;
     use super::eval;
+    use super::EvalResult;
 
-    fn read_and_eval(s: &str) -> Box<dyn Object> {
+    fn __eval(s: &str) -> EvalResult {
         let mut lexer = Lexer::new(s);
         let mut v = Vec::new();
         loop {
@@ -250,13 +274,26 @@ mod tests {
         v.push(Token::Eof);
         let root = Parser::new(v).parse();
         assert!(root.is_some());
-        let r = eval(&root.unwrap());
+        let mut env = Environment::new();
+        eval(&root.unwrap(), &mut env)
+    }
+
+    fn read_and_eval(s: &str) -> Box<dyn Object> {
+        let r = __eval(s);
         match r {
             Ok(a) => a,
             Err(ref b) => {
                 assert!(r.is_ok(), "{}", b);
                 unreachable!();
             }
+        }
+    }
+
+    fn assert_error(s: &str, error_message: &str) {
+        let r = __eval(s);
+        assert!(r.is_err());
+        if let Err(e) = r {
+            assert!(e.contains(error_message));
         }
     }
 
@@ -349,6 +386,25 @@ mod tests {
                     return 1;
                 } "#,
             10,
+        );
+    }
+
+    #[test]
+    fn test04() {
+        assert_integer(r#" let a = 5; a; "#, 5);
+        assert_integer(r#" let a = 5 * 5; a; "#, 25);
+        assert_integer(r#" let a = 1; let b = a * 2; a + b "#, 3);
+        assert_error(r#" let a = 1; b "#, "not defined");
+        assert_error(r#" let a = 1; let a = 2; "#, "already");
+        assert_integer(
+            r#" {
+            let a = 1;
+            {
+                let a = 2;
+                a
+            }
+             "#,
+            2,
         );
     }
 }
