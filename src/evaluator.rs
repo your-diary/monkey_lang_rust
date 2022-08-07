@@ -284,7 +284,14 @@ fn eval_call_expression_node(n: &CallExpressionNode, env: &mut Environment) -> E
         )
     }
 
-    eval(&body, &mut function_env)
+    //Extracts the value of `ReturnValue` as in `eval_root_node()`.
+    //Without this, `let f = fn() { return 3; 4 }; let a = f(); f(); return 100;` returns `3` (not `100`).
+    //See the comments of `eval_root_node()` and `eval_block_statement_node()` for related information.
+    let result = eval(&body, &mut function_env)?;
+    if let Some(e) = result.as_any().downcast_ref::<ReturnValue>() {
+        return Ok(e.value().clone());
+    }
+    Ok(result)
 }
 
 fn eval_if_expression_node(n: &IfExpressionNode, env: &mut Environment) -> EvalResult {
@@ -540,6 +547,19 @@ mod tests {
         assert_integer(r#" let f = fn(x, y) { x + y }; f(1, 2) "#, 3);
         assert_integer(r#" fn() { return 3; }() "#, 3);
         assert_integer(r#" let a = 3; let f = fn() { a }; f() "#, 3);
+        assert_integer(
+            r#" let f = fn() { return 3; 4 }; let a = f(); f(); return 100; "#,
+            100,
+        );
+        assert_integer(
+            r#" let f = fn(x) { fn(y) { x + y } }; let g = f(1); g(2) "#,
+            3,
+        );
+        //TODO uncomment after implementing assignment
+        //         assert_integer(
+        //             r#" let a = 1; let f = fn(x) { fn(y) { x + y } }; let g = f(a); a = 100; g(2) "#,
+        //             3,
+        //         );
         assert_integer(
             r#" let f = fn(g) { g(10) }; let g = fn(x) { x * 10 }; f(g) "#,
             100,
