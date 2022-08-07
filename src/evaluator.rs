@@ -2,7 +2,7 @@ use super::ast::*;
 use super::object::*;
 use super::token::Token;
 
-fn eval(node: &dyn Node) -> Box<dyn Object> {
+pub fn eval(node: &dyn Node) -> Box<dyn Object> {
     if let Some(n) = node.as_any().downcast_ref::<RootNode>() {
         return eval(n.statements()[0].as_node());
     }
@@ -31,6 +31,88 @@ fn eval(node: &dyn Node) -> Box<dyn Object> {
                 unimplemented!();
             }
             _ => unreachable!(),
+        }
+    }
+
+    if let Some(n) = node.as_any().downcast_ref::<BinaryExpressionNode>() {
+        let left = eval(n.left().as_node());
+        let right = eval(n.right().as_node());
+        match n.operator() {
+            Token::Plus => {
+                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                        return Box::new(Integer::new(left.value() + right.value()));
+                    }
+                }
+                unimplemented!();
+            }
+            Token::Minus => {
+                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                        return Box::new(Integer::new(left.value() - right.value()));
+                    }
+                }
+                unimplemented!();
+            }
+            Token::Asterisk => {
+                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                        return Box::new(Integer::new(left.value() * right.value()));
+                    }
+                }
+                unimplemented!();
+            }
+            Token::Slash => {
+                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                        return Box::new(Integer::new(left.value() / right.value()));
+                    }
+                }
+                unimplemented!();
+            }
+            Token::Eq => {
+                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                        return Box::new(Boolean::new(left.value() == right.value()));
+                    }
+                }
+                if let Some(left) = left.as_any().downcast_ref::<Boolean>() {
+                    if let Some(right) = right.as_any().downcast_ref::<Boolean>() {
+                        return Box::new(Boolean::new(left.value() == right.value()));
+                    }
+                }
+                unimplemented!();
+            }
+            Token::NotEq => {
+                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                        return Box::new(Boolean::new(left.value() != right.value()));
+                    }
+                }
+                if let Some(left) = left.as_any().downcast_ref::<Boolean>() {
+                    if let Some(right) = right.as_any().downcast_ref::<Boolean>() {
+                        return Box::new(Boolean::new(left.value() != right.value()));
+                    }
+                }
+                unimplemented!();
+            }
+            Token::Lt => {
+                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                        return Box::new(Boolean::new(left.value() < right.value()));
+                    }
+                }
+                unimplemented!();
+            }
+            Token::Gt => {
+                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                        return Box::new(Boolean::new(left.value() > right.value()));
+                    }
+                }
+                unimplemented!();
+            }
+            _ => unimplemented!(),
         }
     }
 
@@ -93,9 +175,12 @@ mod tests {
 
     #[test]
     fn test01() {
+        //literal
         assert_integer(r#" 5 "#, 5);
         assert_boolean(r#" true "#, true);
         assert_boolean(r#" false "#, false);
+
+        //invert
         assert_boolean(r#" !true "#, false);
         assert_boolean(r#" !false "#, true);
         assert_boolean(r#" !!true "#, true);
@@ -104,7 +189,35 @@ mod tests {
         assert_boolean(r#" !!0 "#, false);
         assert_boolean(r#" !1 "#, false);
         assert_boolean(r#" !!1 "#, true);
+
+        //unary minus
         assert_integer(r#" -5 "#, -5);
         assert_integer(r#" --5 "#, 5);
+
+        //binary + - * /
+        assert_integer(r#" 2 + 3 "#, 5);
+        assert_integer(r#" 2 - 3 "#, -1);
+        assert_integer(r#" 2 * 3 "#, 6);
+        assert_integer(r#" 2 / 3 "#, 0);
+        assert_integer(r#" 4 / 3 "#, 1);
+        assert_integer(r#" 2 + 3 * 4"#, 14);
+        assert_integer(r#" (2 + 3) * 4"#, 20);
+
+        //binary == != < >
+        assert_boolean(r#" true == false "#, false);
+        assert_boolean(r#" true == true "#, true);
+        assert_boolean(r#" true != false "#, true);
+        assert_boolean(r#" false != false "#, false);
+        assert_boolean(r#" 1 == 0 "#, false);
+        assert_boolean(r#" 1 == 1 "#, true);
+        assert_boolean(r#" 1 != 0 "#, true);
+        assert_boolean(r#" 0 != 0 "#, false);
+        assert_boolean(r#" 0 != 0 "#, false);
+        assert_boolean(r#" 1 > 0 "#, true);
+        assert_boolean(r#" 0 > 0 "#, false);
+        assert_boolean(r#" -1 > 0 "#, false);
+        assert_boolean(r#" 1 < 0 "#, false);
+        assert_boolean(r#" 0 < 0 "#, false);
+        assert_boolean(r#" -1 < 0 "#, true);
     }
 }

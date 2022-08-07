@@ -1,8 +1,9 @@
 use std::any::Any;
+use std::fmt::{self, Display};
 
 /*-------------------------------------*/
 
-pub trait Object {
+pub trait Object: Display {
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -17,6 +18,11 @@ impl Object for Null {
 impl Null {
     pub fn new() -> Self {
         Self {}
+    }
+}
+impl Display for Null {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "null")
     }
 }
 
@@ -38,6 +44,11 @@ impl Integer {
         self.value
     }
 }
+impl Display for Integer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
 
 /*-------------------------------------*/
 
@@ -55,6 +66,11 @@ impl Boolean {
     }
     pub fn value(&self) -> bool {
         self.value
+    }
+}
+impl Display for Boolean {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
     }
 }
 

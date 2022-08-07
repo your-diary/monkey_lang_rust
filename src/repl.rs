@@ -1,5 +1,6 @@
 use std::io::{self, Write};
 
+use super::evaluator;
 use super::lexer::Lexer;
 use super::parser::Parser;
 use super::token::Token;
@@ -40,7 +41,8 @@ pub fn start() {
                 println!("parse error");
             }
             Some(e) => {
-                println!("{:#?}", e);
+                // println!("{:#?}", e);
+                println!("{}", evaluator::eval(&e));
             }
         }
     }
