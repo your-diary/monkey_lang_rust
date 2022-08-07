@@ -539,6 +539,8 @@ mod tests {
         assert_integer(r#" let f = fn(x) { x; }; f(5) "#, 5);
         assert_integer(r#" let f = fn(x, y) { x + y }; f(1, 2) "#, 3);
         assert_integer(r#" fn() { return 3; }() "#, 3);
+        assert_integer(r#" let a = 3; let f = fn() { a }; f() "#, 3);
+        // assert_integer(r#" let a = 3; let f = fn() { a }; a = 10; f() "#, 10); //TODO uncomment after implementing assignment
         assert_error(r#" let f = 3; f(3) "#, "not a function");
         assert_error(r#" g(3) "#, "not defined");
         assert_error(r#" let f = fn(x) { x; }; f(5, 10) "#, "number mismatch");
