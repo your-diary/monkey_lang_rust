@@ -42,7 +42,10 @@ pub fn start() {
             }
             Some(e) => {
                 // println!("{:#?}", e);
-                println!("{}", evaluator::eval(&e));
+                match evaluator::eval(&e) {
+                    Ok(e) => println!("{}", e),
+                    Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),
+                }
             }
         }
     }

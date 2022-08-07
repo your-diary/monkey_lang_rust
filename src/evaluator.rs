@@ -2,136 +2,166 @@ use super::ast::*;
 use super::object::*;
 use super::token::Token;
 
-pub fn eval(node: &dyn Node) -> Box<dyn Object> {
+type EvalResult = Result<Box<dyn Object>, String>;
+
+fn eval_root_node(n: &RootNode) -> EvalResult {
+    eval(n.statements()[0].as_node()) //TODO
+}
+
+fn eval_expression_statement_node(n: &ExpressionStatementNode) -> EvalResult {
+    eval(n.expression().as_node())
+}
+
+fn eval_unary_expression_node(n: &UnaryExpressionNode) -> EvalResult {
+    match n.operator() {
+        Token::Minus => {
+            let o = eval(n.expression().as_node())?;
+            if let Some(o) = o.as_any().downcast_ref::<Integer>() {
+                return Ok(Box::new(Integer::new(-o.value())));
+            }
+            Err("operand of unary `-` is not a number".to_string())
+        }
+        Token::Invert => {
+            let o = eval(n.expression().as_node())?;
+            if let Some(o) = o.as_any().downcast_ref::<Boolean>() {
+                return Ok(Box::new(Boolean::new(!o.value())));
+            }
+            if let Some(o) = o.as_any().downcast_ref::<Integer>() {
+                return Ok(Box::new(Boolean::new(o.value() == 0)));
+            }
+            Err("operand of unary `!` is not a number nor a boolean".to_string())
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn eval_binary_expression_node(n: &BinaryExpressionNode) -> EvalResult {
+    let left = eval(n.left().as_node())?;
+    let right = eval(n.right().as_node())?;
+
+    match n.operator() {
+        Token::Plus => {
+            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                    return Ok(Box::new(Integer::new(left.value() + right.value())));
+                }
+            }
+            Err("operand of binary `+` is not a number nor a string".to_string())
+        }
+        Token::Minus => {
+            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                    return Ok(Box::new(Integer::new(left.value() - right.value())));
+                }
+            }
+            Err("operand of binary `-` is not a number".to_string())
+        }
+        Token::Asterisk => {
+            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                    return Ok(Box::new(Integer::new(left.value() * right.value())));
+                }
+            }
+            Err("operand of binary `*` is not a number".to_string())
+        }
+        Token::Slash => {
+            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                    if (right.value() == 0) {
+                        return Err("zero division".to_string());
+                    }
+                    return Ok(Box::new(Integer::new(left.value() / right.value())));
+                }
+            }
+            Err("operand of binary `/` is not a number".to_string())
+        }
+        Token::Eq => {
+            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                    return Ok(Box::new(Boolean::new(left.value() == right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Boolean>() {
+                if let Some(right) = right.as_any().downcast_ref::<Boolean>() {
+                    return Ok(Box::new(Boolean::new(left.value() == right.value())));
+                }
+            }
+            Err("operand of binary `==` is not a number, a boolean nor a string".to_string())
+        }
+        Token::NotEq => {
+            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                    return Ok(Box::new(Boolean::new(left.value() != right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Boolean>() {
+                if let Some(right) = right.as_any().downcast_ref::<Boolean>() {
+                    return Ok(Box::new(Boolean::new(left.value() != right.value())));
+                }
+            }
+            Err("operand of binary `!=` is not a number, a boolean nor a string".to_string())
+        }
+        Token::Lt => {
+            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                    return Ok(Box::new(Boolean::new(left.value() < right.value())));
+                }
+            }
+            Err("operand of binary `<` is not a number nor a string".to_string())
+        }
+        Token::Gt => {
+            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
+                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+                    return Ok(Box::new(Boolean::new(left.value() > right.value())));
+                }
+            }
+            Err("operand of binary `<` is not a number nor a string".to_string())
+        }
+        _ => unimplemented!(),
+    }
+}
+
+fn eval_integer_literal_node(n: &IntegerLiteralNode) -> EvalResult {
+    match n.token() {
+        Token::Int(v) => Ok(Box::new(Integer::new(*v))),
+        _ => unreachable!(),
+    }
+}
+
+fn eval_boolean_literal_node(n: &BooleanLiteralNode) -> EvalResult {
+    match n.token() {
+        Token::True => Ok(Box::new(Boolean::new(true))),
+        Token::False => Ok(Box::new(Boolean::new(false))),
+        _ => unreachable!(),
+    }
+}
+
+pub fn eval(node: &dyn Node) -> EvalResult {
     if let Some(n) = node.as_any().downcast_ref::<RootNode>() {
-        return eval(n.statements()[0].as_node());
+        return eval_root_node(n);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<ExpressionStatementNode>() {
-        return eval(n.expression().as_node());
+        return eval_expression_statement_node(n);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<UnaryExpressionNode>() {
-        match n.operator() {
-            Token::Minus => {
-                let o = eval(n.expression().as_node());
-                if let Some(o) = o.as_any().downcast_ref::<Integer>() {
-                    return Box::new(Integer::new(-o.value()));
-                }
-                unimplemented!();
-            }
-            Token::Invert => {
-                let o = eval(n.expression().as_node());
-                if let Some(o) = o.as_any().downcast_ref::<Boolean>() {
-                    return Box::new(Boolean::new(!o.value()));
-                }
-                if let Some(o) = o.as_any().downcast_ref::<Integer>() {
-                    return Box::new(Boolean::new(o.value() == 0));
-                }
-                unimplemented!();
-            }
-            _ => unreachable!(),
-        }
+        return eval_unary_expression_node(n);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<BinaryExpressionNode>() {
-        let left = eval(n.left().as_node());
-        let right = eval(n.right().as_node());
-        match n.operator() {
-            Token::Plus => {
-                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                        return Box::new(Integer::new(left.value() + right.value()));
-                    }
-                }
-                unimplemented!();
-            }
-            Token::Minus => {
-                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                        return Box::new(Integer::new(left.value() - right.value()));
-                    }
-                }
-                unimplemented!();
-            }
-            Token::Asterisk => {
-                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                        return Box::new(Integer::new(left.value() * right.value()));
-                    }
-                }
-                unimplemented!();
-            }
-            Token::Slash => {
-                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                        return Box::new(Integer::new(left.value() / right.value()));
-                    }
-                }
-                unimplemented!();
-            }
-            Token::Eq => {
-                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                        return Box::new(Boolean::new(left.value() == right.value()));
-                    }
-                }
-                if let Some(left) = left.as_any().downcast_ref::<Boolean>() {
-                    if let Some(right) = right.as_any().downcast_ref::<Boolean>() {
-                        return Box::new(Boolean::new(left.value() == right.value()));
-                    }
-                }
-                unimplemented!();
-            }
-            Token::NotEq => {
-                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                        return Box::new(Boolean::new(left.value() != right.value()));
-                    }
-                }
-                if let Some(left) = left.as_any().downcast_ref::<Boolean>() {
-                    if let Some(right) = right.as_any().downcast_ref::<Boolean>() {
-                        return Box::new(Boolean::new(left.value() != right.value()));
-                    }
-                }
-                unimplemented!();
-            }
-            Token::Lt => {
-                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                        return Box::new(Boolean::new(left.value() < right.value()));
-                    }
-                }
-                unimplemented!();
-            }
-            Token::Gt => {
-                if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                    if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                        return Box::new(Boolean::new(left.value() > right.value()));
-                    }
-                }
-                unimplemented!();
-            }
-            _ => unimplemented!(),
-        }
+        return eval_binary_expression_node(n);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<IntegerLiteralNode>() {
-        if let Token::Int(v) = n.token() {
-            return Box::new(Integer::new(*v));
-        }
-        unreachable!();
+        return eval_integer_literal_node(n);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<BooleanLiteralNode>() {
-        match n.token() {
-            Token::True => return Box::new(Boolean::new(true)),
-            Token::False => return Box::new(Boolean::new(false)),
-            _ => unreachable!(),
-        }
+        return eval_boolean_literal_node(n);
     }
 
-    Box::new(Null::new())
+    Err("not yet implemented".to_string()) //TODO replace it with `unreachable!()`
 }
 
 #[cfg(test)]
@@ -156,7 +186,9 @@ mod tests {
         v.push(Token::Eof);
         let root = Parser::new(v).parse();
         assert!(root.is_some());
-        eval(&root.unwrap())
+        let r = eval(&root.unwrap());
+        assert!(r.is_ok());
+        r.unwrap()
     }
 
     fn assert_integer(s: &str, v: i32) {
