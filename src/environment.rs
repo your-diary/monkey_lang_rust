@@ -4,6 +4,7 @@ use std::rc::Rc;
 use super::object::Object;
 
 //This struct is used as a function table, a variable table, etc.
+#[derive(Clone)]
 pub struct Environment {
     m: HashMap<String, Rc<dyn Object>>,
 }

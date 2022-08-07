@@ -48,6 +48,10 @@ pub fn eval(node: &dyn Node, env: &mut Environment) -> EvalResult {
         return eval_boolean_literal_node(n, env);
     }
 
+    if let Some(n) = node.as_any().downcast_ref::<FunctionLiteralNode>() {
+        return eval_function_literal_node(n, env);
+    }
+
     if let Some(n) = node.as_any().downcast_ref::<IdentifierNode>() {
         match env.get(n.get_name()) {
             None => return Err(format!("`{}` is not defined", n.get_name())),
@@ -254,11 +258,20 @@ fn eval_boolean_literal_node(n: &BooleanLiteralNode, env: &mut Environment) -> E
     }
 }
 
+fn eval_function_literal_node(n: &FunctionLiteralNode, env: &mut Environment) -> EvalResult {
+    Ok(Rc::new(Function::new(
+        n.parameters().clone(),
+        n.body().clone(),
+        env.clone(), //TODO should we clone?
+    )))
+}
+
 #[cfg(test)]
 mod tests {
 
     use std::rc::Rc;
 
+    use super::super::ast::*;
     use super::super::environment::Environment;
     use super::super::lexer::Lexer;
     use super::super::object::*;
@@ -417,5 +430,49 @@ mod tests {
         //              "#,
         //             2,
         //         );
+    }
+
+    #[test]
+    fn test05() {
+        let s = r#"
+            fn () { x + 2; }
+        "#;
+        let o = read_and_eval(s);
+
+        let o = o.as_any().downcast_ref::<Function>();
+        assert!(o.is_some());
+        let f = o.unwrap();
+
+        assert_eq!(0, f.parameters().len());
+
+        assert_eq!(1, f.body().statements().len());
+        let s = f.body().statements()[0]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+
+        let s = s
+            .expression()
+            .as_any()
+            .downcast_ref::<BinaryExpressionNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+
+        assert_eq!(s.operator(), &Token::Plus);
+
+        let left = s.left().as_any().downcast_ref::<IdentifierNode>();
+        assert!(left.is_some());
+        match left.unwrap().token() {
+            Token::Ident(n) if (n == "x") => (),
+            _ => panic!(),
+        }
+
+        let right = s.right().as_any().downcast_ref::<IntegerLiteralNode>();
+        assert!(right.is_some());
+        match right.unwrap().token() {
+            Token::Int(2) => (),
+            _ => panic!(),
+        }
     }
 }

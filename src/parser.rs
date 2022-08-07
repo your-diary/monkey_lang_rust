@@ -113,7 +113,7 @@ impl Parser {
             if (current_token == &Token::Rbrace) {
                 break;
             }
-            ret.statements_mut().push(self.parse_statement()?);
+            ret.statements_mut().push(self.parse_statement()?.into());
         }
         Some(ret)
     }

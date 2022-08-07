@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 use super::token::Token;
 
@@ -59,10 +60,10 @@ impl Default for RootNode {
 
 /*-------------------------------------*/
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BlockStatementNode {
     token: Token,
-    statements: Vec<Box<dyn StatementNode>>,
+    statements: Vec<Rc<dyn StatementNode>>,
 }
 
 impl Node for BlockStatementNode {
@@ -83,10 +84,10 @@ impl BlockStatementNode {
     pub fn token(&self) -> &Token {
         &self.token
     }
-    pub fn statements(&self) -> &Vec<Box<dyn StatementNode>> {
+    pub fn statements(&self) -> &Vec<Rc<dyn StatementNode>> {
         &self.statements
     }
-    pub fn statements_mut(&mut self) -> &mut Vec<Box<dyn StatementNode>> {
+    pub fn statements_mut(&mut self) -> &mut Vec<Rc<dyn StatementNode>> {
         &mut self.statements
     }
 }
@@ -99,7 +100,7 @@ impl Default for BlockStatementNode {
 
 /*-------------------------------------*/
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IdentifierNode {
     token: Token,
 }

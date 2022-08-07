@@ -2,6 +2,9 @@ use std::any::Any;
 use std::fmt::{self, Display};
 use std::rc::Rc;
 
+use super::ast::*;
+use super::environment::Environment;
+
 /*-------------------------------------*/
 
 pub trait Object: Display {
@@ -100,7 +103,45 @@ impl ReturnValue {
 }
 impl Display for ReturnValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "return ({});", self.value) //TODO
+        write!(f, "return") //TODO
+    }
+}
+
+/*-------------------------------------*/
+
+pub struct Function {
+    parameters: Vec<IdentifierNode>,
+    body: BlockStatementNode,
+    env: Environment,
+}
+impl Object for Function {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+impl Function {
+    //TODO Should we receive `env` or intead call `Environment::new()`?
+    pub fn new(
+        parameters: Vec<IdentifierNode>,
+        body: BlockStatementNode,
+        env: Environment,
+    ) -> Self {
+        Self {
+            parameters,
+            body,
+            env,
+        }
+    }
+    pub fn parameters(&self) -> &Vec<IdentifierNode> {
+        &self.parameters
+    }
+    pub fn body(&self) -> &BlockStatementNode {
+        &self.body
+    }
+}
+impl Display for Function {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "function") //TODO
     }
 }
 
