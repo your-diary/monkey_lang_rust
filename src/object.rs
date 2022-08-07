@@ -109,6 +109,7 @@ impl Display for ReturnValue {
 
 /*-------------------------------------*/
 
+#[derive(Clone)]
 pub struct Function {
     parameters: Vec<IdentifierNode>,
     body: BlockStatementNode,
@@ -137,6 +138,9 @@ impl Function {
     }
     pub fn body(&self) -> &BlockStatementNode {
         &self.body
+    }
+    pub fn env(&self) -> &Environment {
+        &self.env
     }
 }
 impl Display for Function {
