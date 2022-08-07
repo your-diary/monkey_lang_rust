@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::fmt::{self, Display};
+use std::rc::Rc;
 
 /*-------------------------------------*/
 
@@ -23,6 +24,11 @@ impl Null {
 impl Display for Null {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "null")
+    }
+}
+impl Default for Null {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -77,7 +83,7 @@ impl Display for Boolean {
 /*-------------------------------------*/
 
 pub struct ReturnValue {
-    value: Box<dyn Object>,
+    value: Rc<dyn Object>,
 }
 impl Object for ReturnValue {
     fn as_any(&self) -> &dyn Any {
@@ -85,23 +91,11 @@ impl Object for ReturnValue {
     }
 }
 impl ReturnValue {
-    pub fn new(value: Box<dyn Object>) -> Self {
+    pub fn new(value: Rc<dyn Object>) -> Self {
         Self { value }
     }
-    pub fn value(&self) -> &dyn Object {
-        self.value.as_ref()
-    }
-    //HACK: manual extraction
-    //We couldn't find a way to move `value` of `ReturnValue` out of the result of `downcast_ref::<ReturnValue>`
-    // in Rust.
-    pub fn extract(&self) -> Box<dyn Object> {
-        if let Some(e) = self.value.as_any().downcast_ref::<Integer>() {
-            return Box::new(Integer::new(e.value())) as _;
-        }
-        if let Some(e) = self.value.as_any().downcast_ref::<Boolean>() {
-            return Box::new(Boolean::new(e.value())) as _;
-        }
-        unimplemented!();
+    pub fn value(&self) -> &Rc<dyn Object> {
+        &self.value
     }
 }
 impl Display for ReturnValue {
