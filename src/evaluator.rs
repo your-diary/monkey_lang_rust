@@ -4,7 +4,47 @@ use super::token::Token;
 
 type EvalResult = Result<Box<dyn Object>, String>;
 
+pub fn eval(node: &dyn Node) -> EvalResult {
+    if let Some(n) = node.as_any().downcast_ref::<RootNode>() {
+        return eval_root_node(n);
+    }
+
+    if let Some(n) = node.as_any().downcast_ref::<BlockStatementNode>() {
+        return eval_block_statement_node(n);
+    }
+
+    if let Some(n) = node.as_any().downcast_ref::<ExpressionStatementNode>() {
+        return eval_expression_statement_node(n);
+    }
+
+    if let Some(n) = node.as_any().downcast_ref::<UnaryExpressionNode>() {
+        return eval_unary_expression_node(n);
+    }
+
+    if let Some(n) = node.as_any().downcast_ref::<BinaryExpressionNode>() {
+        return eval_binary_expression_node(n);
+    }
+
+    if let Some(n) = node.as_any().downcast_ref::<IfExpressionNode>() {
+        return eval_if_expression_node(n);
+    }
+
+    if let Some(n) = node.as_any().downcast_ref::<IntegerLiteralNode>() {
+        return eval_integer_literal_node(n);
+    }
+
+    if let Some(n) = node.as_any().downcast_ref::<BooleanLiteralNode>() {
+        return eval_boolean_literal_node(n);
+    }
+
+    Err("not yet implemented".to_string()) //TODO replace it with `unreachable!()`
+}
+
 fn eval_root_node(n: &RootNode) -> EvalResult {
+    eval(n.statements()[0].as_node()) //TODO
+}
+
+fn eval_block_statement_node(n: &BlockStatementNode) -> EvalResult {
     eval(n.statements()[0].as_node()) //TODO
 }
 
@@ -121,6 +161,20 @@ fn eval_binary_expression_node(n: &BinaryExpressionNode) -> EvalResult {
     }
 }
 
+fn eval_if_expression_node(n: &IfExpressionNode) -> EvalResult {
+    let condition = eval(n.condition().as_node())?;
+    if let Some(condition) = condition.as_any().downcast_ref::<Boolean>() {
+        if (condition.value()) {
+            return eval(n.if_value().as_node());
+        } else if (n.else_value().is_some()) {
+            return eval(n.else_value().as_ref().unwrap().as_node());
+        } else {
+            return Ok(Box::new(Null::new()));
+        }
+    }
+    Err("if condition is not a boolean".to_string())
+}
+
 fn eval_integer_literal_node(n: &IntegerLiteralNode) -> EvalResult {
     match n.token() {
         Token::Int(v) => Ok(Box::new(Integer::new(*v))),
@@ -134,34 +188,6 @@ fn eval_boolean_literal_node(n: &BooleanLiteralNode) -> EvalResult {
         Token::False => Ok(Box::new(Boolean::new(false))),
         _ => unreachable!(),
     }
-}
-
-pub fn eval(node: &dyn Node) -> EvalResult {
-    if let Some(n) = node.as_any().downcast_ref::<RootNode>() {
-        return eval_root_node(n);
-    }
-
-    if let Some(n) = node.as_any().downcast_ref::<ExpressionStatementNode>() {
-        return eval_expression_statement_node(n);
-    }
-
-    if let Some(n) = node.as_any().downcast_ref::<UnaryExpressionNode>() {
-        return eval_unary_expression_node(n);
-    }
-
-    if let Some(n) = node.as_any().downcast_ref::<BinaryExpressionNode>() {
-        return eval_binary_expression_node(n);
-    }
-
-    if let Some(n) = node.as_any().downcast_ref::<IntegerLiteralNode>() {
-        return eval_integer_literal_node(n);
-    }
-
-    if let Some(n) = node.as_any().downcast_ref::<BooleanLiteralNode>() {
-        return eval_boolean_literal_node(n);
-    }
-
-    Err("not yet implemented".to_string()) //TODO replace it with `unreachable!()`
 }
 
 #[cfg(test)]
@@ -187,8 +213,13 @@ mod tests {
         let root = Parser::new(v).parse();
         assert!(root.is_some());
         let r = eval(&root.unwrap());
-        assert!(r.is_ok());
-        r.unwrap()
+        match r {
+            Ok(a) => a,
+            Err(ref b) => {
+                assert!(r.is_ok(), "{}", b);
+                unreachable!();
+            }
+        }
     }
 
     fn assert_integer(s: &str, v: i32) {
@@ -203,6 +234,12 @@ mod tests {
         let o = o.as_any().downcast_ref::<Boolean>();
         assert!(o.is_some());
         assert_eq!(v, o.unwrap().value());
+    }
+
+    fn assert_null(s: &str) {
+        let o = read_and_eval(s);
+        let o = o.as_any().downcast_ref::<Null>();
+        assert!(o.is_some());
     }
 
     #[test]
@@ -251,5 +288,13 @@ mod tests {
         assert_boolean(r#" 1 < 0 "#, false);
         assert_boolean(r#" 0 < 0 "#, false);
         assert_boolean(r#" -1 < 0 "#, true);
+    }
+
+    #[test]
+    fn test02() {
+        assert_integer(r#" if (true) { 10 } "#, 10);
+        assert_null(r#" if (false) { 10 } "#);
+        assert_boolean(r#" if (true) { false } "#, false);
+        assert_integer(r#" if (false) { 10 } else { 20 }"#, 20);
     }
 }
