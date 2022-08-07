@@ -1,10 +1,12 @@
-use std::io::{self, Write};
+use rustyline;
 
 use super::environment::Environment;
 use super::evaluator;
 use super::lexer::Lexer;
 use super::parser::Parser;
 use super::token::Token;
+
+const HISTORY_FILE: &str = "./.history";
 
 fn get_tokens(s: &str) -> Vec<Token> {
     let mut lexer = Lexer::new(s);
@@ -20,35 +22,37 @@ fn get_tokens(s: &str) -> Vec<Token> {
     v
 }
 
-pub fn start() {
+pub fn start() -> rustyline::Result<()> {
     let mut env = Environment::new();
+    let mut rl = rustyline::Editor::<()>::with_config(
+        rustyline::Config::builder()
+            .edit_mode(rustyline::EditMode::Vi)
+            .auto_add_history(true)
+            .build(),
+    )?;
+    rl.load_history(HISTORY_FILE)?;
     loop {
-        print!("\n>> ");
-        io::stdout().flush().unwrap();
-
-        let mut buf: String = String::new();
-        if let Err(e) = io::stdin().read_line(&mut buf) {
-            println!("{}", e);
-            break;
-        }
-        if (buf.trim().is_empty()) {
-            continue;
-        }
-        if ((buf.trim() == "q") || (buf.trim() == "exit")) {
-            break;
-        }
-        let mut parser = Parser::new(get_tokens(&buf));
-        match parser.parse() {
-            None => {
-                println!("parse error");
-            }
-            Some(e) => {
-                // println!("{:#?}", e);
-                match evaluator::eval(&e, &mut env) {
-                    Ok(e) => println!("{}", e),
-                    Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),
+        match rl.readline("\n>> ") {
+            Err(_) => break,
+            Ok(line) => {
+                if (line.trim().is_empty()) {
+                    continue;
+                }
+                let mut parser = Parser::new(get_tokens(&line));
+                match parser.parse() {
+                    None => {
+                        println!("parse error");
+                    }
+                    Some(e) => {
+                        // println!("{:#?}", e);
+                        match evaluator::eval(&e, &mut env) {
+                            Ok(e) => println!("{}", e),
+                            Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),
+                        }
+                    }
                 }
             }
         }
     }
+    rl.save_history(HISTORY_FILE)
 }
