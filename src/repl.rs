@@ -23,7 +23,7 @@ fn get_tokens(s: &str) -> Vec<Token> {
 }
 
 pub fn start() -> rustyline::Result<()> {
-    let mut env = Environment::new();
+    let mut env = Environment::new(None);
     let mut rl = rustyline::Editor::<()>::with_config(
         rustyline::Config::builder()
             .edit_mode(rustyline::EditMode::Vi)

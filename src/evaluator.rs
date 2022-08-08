@@ -13,7 +13,8 @@ pub fn eval(node: &dyn Node, env: &mut Environment) -> EvalResult {
     }
 
     if let Some(n) = node.as_any().downcast_ref::<BlockStatementNode>() {
-        return eval_block_statement_node(n, env);
+        let mut block_env = Environment::new(Some(Rc::new(env.clone())));
+        return eval_block_statement_node(n, &mut block_env);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<LetStatementNode>() {
@@ -276,7 +277,19 @@ fn eval_call_expression_node(n: &CallExpressionNode, env: &mut Environment) -> E
 
     let body = function.body().clone();
 
-    let mut function_env = function.env().clone();
+    //constructs the following nested environment
+    // { //outer
+    //     { //function capture
+    //         { //arguments
+    //         }
+    //     }
+    // }
+    let mut function_env = {
+        let mut e = function.env().clone();
+        e.set_outer(Some(Rc::new(env.clone())));
+        Environment::new(Some(Rc::new(e)))
+    };
+
     for i in 0..parameters.len() {
         function_env.set(
             parameters[i].get_name().to_string(),
@@ -287,7 +300,7 @@ fn eval_call_expression_node(n: &CallExpressionNode, env: &mut Environment) -> E
     //Extracts the value of `ReturnValue` as in `eval_root_node()`.
     //Without this, `let f = fn() { return 3; 4 }; let a = f(); f(); return 100;` returns `3` (not `100`).
     //See the comments of `eval_root_node()` and `eval_block_statement_node()` for related information.
-    let result = eval(&body, &mut function_env)?;
+    let result = eval_block_statement_node(&body, &mut function_env)?;
     if let Some(e) = result.as_any().downcast_ref::<ReturnValue>() {
         return Ok(e.value().clone());
     }
@@ -358,7 +371,7 @@ mod tests {
         v.push(Token::Eof);
         let root = Parser::new(v).parse();
         assert!(root.is_some());
-        let mut env = Environment::new();
+        let mut env = Environment::new(None);
         eval(&root.unwrap(), &mut env)
     }
 
@@ -458,6 +471,7 @@ mod tests {
         assert_null(r#" if (false) { 10 } "#);
         assert_boolean(r#" if (true) { false } "#, false);
         assert_integer(r#" if (false) { 10 } else { 20 }"#, 20);
+        assert_error(r#" if (true) { let a = 3; } a"#, "not defined");
     }
 
     #[test]
@@ -483,18 +497,29 @@ mod tests {
         assert_integer(r#" let a = 1; let b = a * 2; a + b "#, 3);
         assert_error(r#" let a = 1; b "#, "not defined");
         assert_error(r#" let a = 1; let a = 2; "#, "already");
-        //TODO: uncomment
-        //         assert_integer(
-        //             r#" {
-        //                 let a = 1;
-        //                 {
-        //                     let a = 2;
-        //                     a
-        //                 }
-        //             }
-        //              "#,
-        //             2,
-        //         );
+        assert_integer(
+            r#" {
+                    let a = 1;
+                    {
+                        let a = 2;
+                        a
+                    }
+                }
+             "#,
+            2,
+        );
+        assert_integer(
+            r#" {
+                    let a = 1;
+                    {
+                        let a = 2;
+                        a
+                    }
+                    a
+                }
+             "#,
+            1,
+        );
     }
 
     #[test]
@@ -563,6 +588,10 @@ mod tests {
         assert_integer(
             r#" let f = fn(g) { g(10) }; let g = fn(x) { x * 10 }; f(g) "#,
             100,
+        );
+        assert_integer(
+            r#" let factorial = fn(x) { if (x == 0) { return 1; } return x * factorial(x - 1); }; factorial(4) "#,
+            24,
         );
         // assert_integer(r#" let a = 3; let f = fn() { a }; a = 10; f() "#, 10); //TODO uncomment after implementing assignment
         assert_error(r#" let f = 3; f(3) "#, "not a function");
