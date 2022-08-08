@@ -13,8 +13,7 @@ pub fn eval(node: &dyn Node, env: &mut Environment) -> EvalResult {
     }
 
     if let Some(n) = node.as_any().downcast_ref::<BlockStatementNode>() {
-        let mut block_env = Environment::new(Some(Rc::new(env.clone())));
-        return eval_block_statement_node(n, &mut block_env);
+        return eval_block_statement_node(n, env);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<LetStatementNode>() {
@@ -95,9 +94,10 @@ fn eval_root_node(n: &RootNode, env: &mut Environment) -> EvalResult {
 //     return b;
 // }
 fn eval_block_statement_node(n: &BlockStatementNode, env: &mut Environment) -> EvalResult {
+    let mut block_env = Environment::new(Some(Rc::new(env.clone())));
     let mut ret = Rc::new(Null::new()) as _;
     for statement in n.statements() {
-        ret = eval(statement.as_node(), env)?;
+        ret = eval(statement.as_node(), &mut block_env)?;
         if ret.as_any().downcast_ref::<ReturnValue>().is_some() {
             break;
         }
@@ -579,6 +579,12 @@ mod tests {
         assert_integer(
             r#" let f = fn(x) { fn(y) { x + y } }; let g = f(1); g(2) "#,
             3,
+        );
+        assert_integer(
+            r#"
+                let f = fn(x) { fn(y) { fn(z) { x + y + z } } }; let g = f(1); let h = g(2); h(3)
+            "#,
+            6,
         );
         //TODO uncomment after implementing assignment
         //         assert_integer(
