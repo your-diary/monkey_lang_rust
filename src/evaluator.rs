@@ -322,18 +322,11 @@ fn eval_if_expression_node(n: &IfExpressionNode, env: &mut Environment) -> EvalR
 }
 
 fn eval_integer_literal_node(n: &IntegerLiteralNode, _env: &mut Environment) -> EvalResult {
-    match n.token() {
-        Token::Int(v) => Ok(Rc::new(Integer::new(*v))),
-        _ => unreachable!(),
-    }
+    Ok(Rc::new(Integer::new(n.get_value())))
 }
 
 fn eval_boolean_literal_node(n: &BooleanLiteralNode, _env: &mut Environment) -> EvalResult {
-    match n.token() {
-        Token::True => Ok(Rc::new(Boolean::new(true))),
-        Token::False => Ok(Rc::new(Boolean::new(false))),
-        _ => unreachable!(),
-    }
+    Ok(Rc::new(Boolean::new(n.get_value())))
 }
 
 fn eval_function_literal_node(n: &FunctionLiteralNode, env: &mut Environment) -> EvalResult {

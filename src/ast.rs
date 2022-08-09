@@ -113,10 +113,10 @@ impl IdentifierNode {
         IdentifierNode { token }
     }
     pub fn get_name(&self) -> &str {
-        if let Token::Ident(s) = &self.token {
-            return s;
+        match &self.token {
+            Token::Ident(s) => s,
+            _ => unreachable!(),
         }
-        unreachable!();
     }
 }
 
@@ -281,9 +281,11 @@ impl IntegerLiteralNode {
     pub fn new(token: Token) -> Self {
         IntegerLiteralNode { token }
     }
-    //TODO the name get_value() is more appropriate?
-    pub fn token(&self) -> &Token {
-        &self.token
+    pub fn get_value(&self) -> i32 {
+        match self.token {
+            Token::Int(i) => i,
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -306,9 +308,12 @@ impl BooleanLiteralNode {
     pub fn new(token: Token) -> Self {
         BooleanLiteralNode { token }
     }
-    //TODO the name get_value() is more appropriate?
-    pub fn token(&self) -> &Token {
-        &self.token
+    pub fn get_value(&self) -> bool {
+        match self.token {
+            Token::True => true,
+            Token::False => false,
+            _ => unreachable!(),
+        }
     }
 }
 
