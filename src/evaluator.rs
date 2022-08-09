@@ -370,7 +370,7 @@ mod tests {
         }
         v.push(Token::Eof);
         let root = Parser::new(v).parse();
-        assert!(root.is_some());
+        assert!(root.is_ok());
         let mut env = Environment::new(None);
         eval(&root.unwrap(), &mut env)
     }

@@ -23,14 +23,18 @@ fn get_tokens(s: &str) -> Vec<Token> {
 }
 
 pub fn start() -> rustyline::Result<()> {
-    let mut env = Environment::new(None);
     let mut rl = rustyline::Editor::<()>::with_config(
         rustyline::Config::builder()
             .edit_mode(rustyline::EditMode::Vi)
             .auto_add_history(true)
             .build(),
     )?;
-    rl.load_history(HISTORY_FILE)?;
+    if let Err(e) = rl.load_history(HISTORY_FILE) {
+        println!("Falied to load the history file `{}`: {}", HISTORY_FILE, e);
+    }
+
+    let mut env = Environment::new(None);
+
     loop {
         match rl.readline("\n>> ") {
             Err(_) => break,
@@ -38,15 +42,17 @@ pub fn start() -> rustyline::Result<()> {
                 if (line.trim().is_empty()) {
                     continue;
                 }
+
                 let mut parser = Parser::new(get_tokens(&line));
+
                 match parser.parse() {
-                    None => {
-                        println!("parse error");
+                    Err(e) => {
+                        println!("\u{001B}[091m{}\u{001B}[0m", e);
                     }
-                    Some(e) => {
+                    Ok(e) => {
                         // println!("{:#?}", e);
                         match evaluator::eval(&e, &mut env) {
-                            Ok(e) => println!("{}", e),
+                            Ok(e) => println!("\u{001B}[095m{}\u{001B}[0m", e),
                             Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),
                         }
                     }
@@ -54,5 +60,6 @@ pub fn start() -> rustyline::Result<()> {
             }
         }
     }
+
     rl.save_history(HISTORY_FILE)
 }
