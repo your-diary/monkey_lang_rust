@@ -380,7 +380,7 @@ impl LetStatementNode {
 
 #[derive(Debug)]
 pub struct ReturnStatementNode {
-    expression: Box<dyn ExpressionNode>,
+    expression: Option<Box<dyn ExpressionNode>>,
 }
 
 impl Node for ReturnStatementNode {
@@ -392,11 +392,11 @@ impl Node for ReturnStatementNode {
 impl StatementNode for ReturnStatementNode {}
 
 impl ReturnStatementNode {
-    pub fn new(expression: Box<dyn ExpressionNode>) -> Self {
+    pub fn new(expression: Option<Box<dyn ExpressionNode>>) -> Self {
         ReturnStatementNode { expression }
     }
-    pub fn expression(&self) -> &dyn ExpressionNode {
-        self.expression.as_ref()
+    pub fn expression(&self) -> &Option<Box<dyn ExpressionNode>> {
+        &self.expression
     }
 }
 

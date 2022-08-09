@@ -109,10 +109,10 @@ fn eval_let_statement_node(n: &LetStatementNode, env: &mut Environment) -> EvalR
 }
 
 fn eval_return_statement_node(n: &ReturnStatementNode, env: &mut Environment) -> EvalResult {
-    Ok(Rc::new(ReturnValue::new(eval(
-        n.expression().as_node(),
-        env,
-    )?)))
+    Ok(Rc::new(ReturnValue::new(match n.expression() {
+        None => Rc::new(Null::new()),
+        Some(e) => eval(e.as_node(), env)?,
+    })))
 }
 
 fn eval_expression_statement_node(
@@ -472,6 +472,7 @@ mod tests {
 
     #[test]
     fn test03() {
+        assert_null(r#" return; 15"#);
         assert_integer(r#" return 10; 15"#, 10);
         assert_integer(r#" 5; return 2 * 5; 15"#, 10);
         assert_boolean(r#" return true; false"#, true);

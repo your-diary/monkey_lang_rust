@@ -178,14 +178,17 @@ impl Parser {
         Ok(LetStatementNode::new(identifier, expr))
     }
 
-    //return <expression>;
+    //return [<expression>];
     fn parse_return_statement(&mut self) -> ParseResult<ReturnStatementNode> {
+        if (self.expect_and_peek(Token::Semicolon)) {
+            return Ok(ReturnStatementNode::new(None));
+        }
         self.index += 1;
         let expr = self.parse_expression(Precedence::Lowest)?;
         if (!self.expect_and_peek(Token::Semicolon)) {
             return Err(ParseError::Error("`;` missing in `return`".to_string()));
         }
-        Ok(ReturnStatementNode::new(expr))
+        Ok(ReturnStatementNode::new(Some(expr)))
     }
 
     //<expression>[;]
@@ -525,7 +528,8 @@ mod tests {
                 .downcast_ref::<ReturnStatementNode>();
             assert!(s.is_some());
             let s = s.unwrap();
-            assert_integer_literal(s.expression(), values[i]);
+            assert!(s.expression().is_some());
+            assert_integer_literal(s.expression().as_ref().unwrap().as_ref(), values[i]);
         }
     }
 
@@ -850,7 +854,7 @@ mod tests {
     fn test12() {
         let input = r#"
                     fn () {
-                        return x + y;
+                        return;
                     }
                     fn (x) {
                         return x + y;
@@ -899,7 +903,17 @@ mod tests {
                 .downcast_ref::<ReturnStatementNode>();
             assert!(s.is_some());
             let s = s.unwrap();
-            assert_binary_expression_2(s.expression(), &Token::Plus, "x", "y");
+            if (i == 0) {
+                assert!(s.expression().is_none());
+            } else {
+                assert!(s.expression().is_some());
+                assert_binary_expression_2(
+                    s.expression().as_ref().unwrap().as_ref(),
+                    &Token::Plus,
+                    "x",
+                    "y",
+                );
+            }
         }
     }
 
