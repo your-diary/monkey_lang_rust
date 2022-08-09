@@ -62,7 +62,6 @@ impl Default for RootNode {
 
 #[derive(Debug, Clone)]
 pub struct BlockStatementNode {
-    token: Token,
     statements: Vec<Rc<dyn StatementNode>>,
 }
 
@@ -77,12 +76,8 @@ impl StatementNode for BlockStatementNode {}
 impl BlockStatementNode {
     pub fn new() -> Self {
         BlockStatementNode {
-            token: Token::Lbrace,
             statements: Vec::new(),
         }
-    }
-    fn token(&self) -> &Token {
-        &self.token
     }
     pub fn statements(&self) -> &Vec<Rc<dyn StatementNode>> {
         &self.statements
@@ -116,9 +111,6 @@ impl ExpressionNode for IdentifierNode {}
 impl IdentifierNode {
     pub fn new(token: Token) -> Self {
         IdentifierNode { token }
-    }
-    fn token(&self) -> &Token {
-        &self.token
     }
     pub fn get_name(&self) -> &str {
         if let Token::Ident(s) = &self.token {
@@ -234,7 +226,6 @@ impl CallExpressionNode {
 
 #[derive(Debug)]
 pub struct IfExpressionNode {
-    token: Token,
     condition: Box<dyn ExpressionNode>,
     if_value: BlockStatementNode,
     else_value: Option<BlockStatementNode>,
@@ -255,14 +246,10 @@ impl IfExpressionNode {
         else_value: Option<BlockStatementNode>,
     ) -> Self {
         IfExpressionNode {
-            token: Token::If,
             condition,
             if_value,
             else_value,
         }
-    }
-    fn token(&self) -> &Token {
-        &self.token
     }
     pub fn condition(&self) -> &dyn ExpressionNode {
         self.condition.as_ref()
@@ -294,6 +281,7 @@ impl IntegerLiteralNode {
     pub fn new(token: Token) -> Self {
         IntegerLiteralNode { token }
     }
+    //TODO the name get_value() is more appropriate?
     pub fn token(&self) -> &Token {
         &self.token
     }
@@ -318,6 +306,7 @@ impl BooleanLiteralNode {
     pub fn new(token: Token) -> Self {
         BooleanLiteralNode { token }
     }
+    //TODO the name get_value() is more appropriate?
     pub fn token(&self) -> &Token {
         &self.token
     }
@@ -327,7 +316,6 @@ impl BooleanLiteralNode {
 
 #[derive(Debug)]
 pub struct FunctionLiteralNode {
-    token: Token,
     parameters: Vec<IdentifierNode>,
     body: BlockStatementNode,
 }
@@ -342,14 +330,7 @@ impl ExpressionNode for FunctionLiteralNode {}
 
 impl FunctionLiteralNode {
     pub fn new(parameters: Vec<IdentifierNode>, body: BlockStatementNode) -> Self {
-        FunctionLiteralNode {
-            token: Token::Function,
-            parameters,
-            body,
-        }
-    }
-    fn token(&self) -> &Token {
-        &self.token
+        FunctionLiteralNode { parameters, body }
     }
     pub fn parameters(&self) -> &Vec<IdentifierNode> {
         &self.parameters
@@ -363,7 +344,6 @@ impl FunctionLiteralNode {
 
 #[derive(Debug)]
 pub struct LetStatementNode {
-    token: Token,
     identifier: IdentifierNode,
     expression: Box<dyn ExpressionNode>,
 }
@@ -379,13 +359,9 @@ impl StatementNode for LetStatementNode {}
 impl LetStatementNode {
     pub fn new(identifier: IdentifierNode, expression: Box<dyn ExpressionNode>) -> Self {
         LetStatementNode {
-            token: Token::Let,
             identifier,
             expression,
         }
-    }
-    fn token(&self) -> &Token {
-        &self.token
     }
     pub fn identifier(&self) -> &IdentifierNode {
         &self.identifier
@@ -399,7 +375,6 @@ impl LetStatementNode {
 
 #[derive(Debug)]
 pub struct ReturnStatementNode {
-    token: Token,
     expression: Box<dyn ExpressionNode>,
 }
 
@@ -413,13 +388,7 @@ impl StatementNode for ReturnStatementNode {}
 
 impl ReturnStatementNode {
     pub fn new(expression: Box<dyn ExpressionNode>) -> Self {
-        ReturnStatementNode {
-            token: Token::Return,
-            expression,
-        }
-    }
-    fn token(&self) -> &Token {
-        &self.token
+        ReturnStatementNode { expression }
     }
     pub fn expression(&self) -> &dyn ExpressionNode {
         self.expression.as_ref()
@@ -430,7 +399,6 @@ impl ReturnStatementNode {
 
 #[derive(Debug)]
 pub struct ExpressionStatementNode {
-    token: Token, //first token of an expression
     expression: Box<dyn ExpressionNode>,
 }
 
@@ -443,11 +411,8 @@ impl Node for ExpressionStatementNode {
 impl StatementNode for ExpressionStatementNode {}
 
 impl ExpressionStatementNode {
-    pub fn new(token: Token, expression: Box<dyn ExpressionNode>) -> Self {
-        ExpressionStatementNode { token, expression }
-    }
-    fn token(&self) -> &Token {
-        &self.token
+    pub fn new(expression: Box<dyn ExpressionNode>) -> Self {
+        ExpressionStatementNode { expression }
     }
     pub fn expression(&self) -> &dyn ExpressionNode {
         self.expression.as_ref()

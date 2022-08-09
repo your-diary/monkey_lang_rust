@@ -190,10 +190,9 @@ impl Parser {
 
     //<expression>[;]
     fn parse_expression_statement(&mut self) -> ParseResult<ExpressionStatementNode> {
-        let token = self.get(self.index)?.clone();
         let expr = self.parse_expression(Precedence::Lowest)?;
         self.expect_and_peek(Token::Semicolon); //we ignore the result as semicolon is optional
-        Ok(ExpressionStatementNode::new(token, expr))
+        Ok(ExpressionStatementNode::new(expr))
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> ParseResult<Box<dyn ExpressionNode>> {
