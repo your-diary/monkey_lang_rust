@@ -81,7 +81,7 @@ impl BlockStatementNode {
             statements: Vec::new(),
         }
     }
-    pub fn token(&self) -> &Token {
+    fn token(&self) -> &Token {
         &self.token
     }
     pub fn statements(&self) -> &Vec<Rc<dyn StatementNode>> {
@@ -117,7 +117,7 @@ impl IdentifierNode {
     pub fn new(token: Token) -> Self {
         IdentifierNode { token }
     }
-    pub fn token(&self) -> &Token {
+    fn token(&self) -> &Token {
         &self.token
     }
     pub fn get_name(&self) -> &str {
@@ -261,7 +261,7 @@ impl IfExpressionNode {
             else_value,
         }
     }
-    pub fn token(&self) -> &Token {
+    fn token(&self) -> &Token {
         &self.token
     }
     pub fn condition(&self) -> &dyn ExpressionNode {
@@ -348,7 +348,7 @@ impl FunctionLiteralNode {
             body,
         }
     }
-    pub fn token(&self) -> &Token {
+    fn token(&self) -> &Token {
         &self.token
     }
     pub fn parameters(&self) -> &Vec<IdentifierNode> {
@@ -384,7 +384,7 @@ impl LetStatementNode {
             expression,
         }
     }
-    pub fn token(&self) -> &Token {
+    fn token(&self) -> &Token {
         &self.token
     }
     pub fn identifier(&self) -> &IdentifierNode {
@@ -418,7 +418,7 @@ impl ReturnStatementNode {
             expression,
         }
     }
-    pub fn token(&self) -> &Token {
+    fn token(&self) -> &Token {
         &self.token
     }
     pub fn expression(&self) -> &dyn ExpressionNode {
@@ -446,7 +446,7 @@ impl ExpressionStatementNode {
     pub fn new(token: Token, expression: Box<dyn ExpressionNode>) -> Self {
         ExpressionStatementNode { token, expression }
     }
-    pub fn token(&self) -> &Token {
+    fn token(&self) -> &Token {
         &self.token
     }
     pub fn expression(&self) -> &dyn ExpressionNode {
