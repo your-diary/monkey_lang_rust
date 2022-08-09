@@ -18,13 +18,13 @@ impl Lexer {
         }
     }
 
-    pub fn read_next_char(&mut self) {
+    fn read_next_char(&mut self) {
         self.position += 1;
         self.ch = self.input.get(self.position).copied();
     }
 
     //like `read_next_char()` but immutable and instead returns the next character
-    pub fn peek_next_char(&self) -> Option<char> {
+    fn peek_next_char(&self) -> Option<char> {
         self.input.get(self.position + 1).copied()
     }
 
@@ -34,7 +34,7 @@ impl Lexer {
         }
     }
 
-    pub fn read_identifier(&mut self) -> String {
+    fn read_identifier(&mut self) -> String {
         let position = self.position;
         while (self.ch.is_some() && util::is_identifier(self.ch.unwrap())) {
             self.read_next_char();
@@ -42,7 +42,7 @@ impl Lexer {
         self.input[position..self.position].iter().collect()
     }
 
-    pub fn read_number(&mut self) -> String {
+    fn read_number(&mut self) -> String {
         let position = self.position;
         while (self.ch.is_some() && self.ch.unwrap().is_ascii_digit()) {
             self.read_next_char();
@@ -57,7 +57,8 @@ impl Lexer {
         }
         let sequence: String = match self.ch.unwrap() {
             c if c.is_ascii_digit() => self.read_number(),
-            c if util::is_identifier(c) => self.read_identifier(),
+            c if util::is_identifier(c) => self.read_identifier(), //this includes a keyword such as `if`
+            //operators
             c => {
                 let ret = match c {
                     '=' => {
