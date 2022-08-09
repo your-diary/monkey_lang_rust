@@ -103,7 +103,7 @@ impl ReturnValue {
 }
 impl Display for ReturnValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "return") //TODO
+        write!(f, "return")
     }
 }
 
@@ -121,7 +121,6 @@ impl Object for Function {
     }
 }
 impl Function {
-    //TODO Should we receive `env` or intead call `Environment::new()`?
     pub fn new(
         parameters: Vec<IdentifierNode>,
         body: BlockStatementNode,
@@ -145,7 +144,7 @@ impl Function {
 }
 impl Display for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "function") //TODO
+        write!(f, "function")
     }
 }
 

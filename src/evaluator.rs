@@ -57,13 +57,10 @@ pub fn eval(node: &dyn Node, env: &mut Environment) -> EvalResult {
     }
 
     if let Some(n) = node.as_any().downcast_ref::<IdentifierNode>() {
-        match env.get(n.get_name()) {
-            None => return Err(format!("`{}` is not defined", n.get_name())),
-            Some(e) => return Ok(e.clone()),
-        }
+        return eval_identifier_node(n, env);
     }
 
-    Err("not yet implemented".to_string()) //TODO replace it with `unreachable!()`
+    Err("not yet implemented or a bug of interpreter".to_string())
 }
 
 fn eval_root_node(n: &RootNode, env: &mut Environment) -> EvalResult {
@@ -93,7 +90,7 @@ fn eval_root_node(n: &RootNode, env: &mut Environment) -> EvalResult {
 //     a;
 //     return b;
 // }
-fn eval_block_statement_node(n: &BlockStatementNode, env: &mut Environment) -> EvalResult {
+fn eval_block_statement_node(n: &BlockStatementNode, env: &Environment) -> EvalResult {
     let mut block_env = Environment::new(Some(Rc::new(env.clone())));
     let mut ret = Rc::new(Null::new()) as _;
     for statement in n.statements() {
@@ -144,7 +141,7 @@ fn eval_unary_expression_node(n: &UnaryExpressionNode, env: &mut Environment) ->
             }
             Err("operand of unary `!` is not a number nor a boolean".to_string())
         }
-        _ => unreachable!(),
+        t => Err(format!("unknown unary operator: `{:?}`", t)),
     }
 }
 
@@ -220,7 +217,7 @@ fn eval_binary_expression_node(n: &BinaryExpressionNode, env: &mut Environment) 
                     return Ok(Rc::new(Boolean::new(left.value() < right.value())));
                 }
             }
-            Err("operand of binary `<` is not a number nor a string".to_string())
+            Err("operand of binary `<` is not a number, a boolean nor a string".to_string())
         }
         Token::Gt => {
             if let Some(left) = left.as_any().downcast_ref::<Integer>() {
@@ -228,9 +225,9 @@ fn eval_binary_expression_node(n: &BinaryExpressionNode, env: &mut Environment) 
                     return Ok(Rc::new(Boolean::new(left.value() > right.value())));
                 }
             }
-            Err("operand of binary `<` is not a number nor a string".to_string())
+            Err("operand of binary `<` is not a number, a boolean nor a string".to_string())
         }
-        _ => unimplemented!(),
+        t => Err(format!("unknown binary operator: `{:?}`", t)),
     }
 }
 
@@ -269,13 +266,9 @@ fn eval_call_expression_node(n: &CallExpressionNode, env: &mut Environment) -> E
         }
     };
 
-    let arguments = n.arguments();
-    let parameters = function.parameters().clone();
-    if (arguments.len() != parameters.len()) {
+    if (n.arguments().len() != function.parameters().len()) {
         return Err("argument number mismatch".to_string());
     }
-
-    let body = function.body().clone();
 
     //constructs the following nested environment
     // { //outer
@@ -290,17 +283,18 @@ fn eval_call_expression_node(n: &CallExpressionNode, env: &mut Environment) -> E
         Environment::new(Some(Rc::new(e)))
     };
 
-    for i in 0..parameters.len() {
+    let parameters = function.parameters();
+    for (i, param) in parameters.iter().enumerate() {
         function_env.set(
-            parameters[i].get_name().to_string(),
-            eval(arguments[i].as_node(), env)?,
+            param.get_name().to_string(),
+            eval(n.arguments()[i].as_node(), env)?,
         )
     }
 
     //Extracts the value of `ReturnValue` as in `eval_root_node()`.
     //Without this, `let f = fn() { return 3; 4 }; let a = f(); f(); return 100;` returns `3` (not `100`).
     //See the comments of `eval_root_node()` and `eval_block_statement_node()` for related information.
-    let result = eval_block_statement_node(&body, &mut function_env)?;
+    let result = eval_block_statement_node(function.body(), &function_env)?;
     if let Some(e) = result.as_any().downcast_ref::<ReturnValue>() {
         return Ok(e.value().clone());
     }
@@ -309,23 +303,25 @@ fn eval_call_expression_node(n: &CallExpressionNode, env: &mut Environment) -> E
 
 fn eval_if_expression_node(n: &IfExpressionNode, env: &mut Environment) -> EvalResult {
     let condition = eval(n.condition().as_node(), env)?;
-    if let Some(condition) = condition.as_any().downcast_ref::<Boolean>() {
-        if (condition.value()) {
-            return eval(n.if_value().as_node(), env);
-        } else if (n.else_value().is_some()) {
-            return eval(n.else_value().as_ref().unwrap().as_node(), env);
-        } else {
-            return Ok(Rc::new(Null::new()));
+    match condition.as_any().downcast_ref::<Boolean>() {
+        None => Err("if condition is not a boolean".to_string()),
+        Some(condition) => {
+            if (condition.value()) {
+                eval(n.if_value().as_node(), env)
+            } else if (n.else_value().is_some()) {
+                eval(n.else_value().as_ref().unwrap().as_node(), env)
+            } else {
+                Ok(Rc::new(Null::new()))
+            }
         }
     }
-    Err("if condition is not a boolean".to_string())
 }
 
-fn eval_integer_literal_node(n: &IntegerLiteralNode, _env: &mut Environment) -> EvalResult {
+fn eval_integer_literal_node(n: &IntegerLiteralNode, _env: &Environment) -> EvalResult {
     Ok(Rc::new(Integer::new(n.get_value())))
 }
 
-fn eval_boolean_literal_node(n: &BooleanLiteralNode, _env: &mut Environment) -> EvalResult {
+fn eval_boolean_literal_node(n: &BooleanLiteralNode, _env: &Environment) -> EvalResult {
     Ok(Rc::new(Boolean::new(n.get_value())))
 }
 
@@ -333,8 +329,15 @@ fn eval_function_literal_node(n: &FunctionLiteralNode, env: &mut Environment) ->
     Ok(Rc::new(Function::new(
         n.parameters().clone(),
         n.body().clone(),
-        env.clone(), //TODO should we clone?
+        env.clone(),
     )))
+}
+
+fn eval_identifier_node(n: &IdentifierNode, env: &Environment) -> EvalResult {
+    match env.get(n.get_name()) {
+        None => Err(format!("`{}` is not defined", n.get_name())),
+        Some(e) => Ok(e.clone()),
+    }
 }
 
 #[cfg(test)]

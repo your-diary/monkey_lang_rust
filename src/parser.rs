@@ -207,9 +207,10 @@ impl Parser {
             Token::Function => self.parse_function_literal().map(|e| Box::new(e) as _),
             Token::True => self.parse_boolean_literal().map(|e| Box::new(e) as _),
             Token::False => self.parse_boolean_literal().map(|e| Box::new(e) as _),
-            _ => Err(ParseError::Error(
-                "unexpected start of expression".to_string(),
-            )),
+            t => Err(ParseError::Error(format!(
+                "unexpected start of expression: {:?}",
+                t
+            ))),
         }?;
 
         //parses a binary expression or a call expression if the next token is a binary operator or a paren `(`

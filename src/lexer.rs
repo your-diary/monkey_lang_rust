@@ -87,7 +87,10 @@ impl Lexer {
         };
         match token::lookup_token(&sequence) {
             Token::Ident(_) => Token::Ident(sequence),
-            Token::Int(_) => Token::Int(sequence.parse().unwrap()),
+            Token::Int(_) => match sequence.parse() {
+                Err(_) => Token::Illegal, //overflow
+                Ok(i) => Token::Int(i),
+            },
             t => t,
         }
     }
