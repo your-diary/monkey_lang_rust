@@ -382,589 +382,563 @@ impl Parser {
 
 /*-------------------------------------*/
 
-// #[cfg(test)]
-// mod tests {
-//
-//     use super::super::ast::*;
-//     use super::super::lexer::Lexer;
-//     use super::super::token::Token;
-//     use super::Parser;
-//
-//     fn get_tokens(s: &str) -> Vec<Token> {
-//         let mut lexer = Lexer::new(s);
-//         let mut v = Vec::new();
-//         loop {
-//             let token = lexer.get_next_token();
-//             if (token == Token::Eof) {
-//                 break;
-//             }
-//             v.push(token);
-//         }
-//         v.push(Token::Eof);
-//         v
-//     }
-//
-//     fn assert_integer_literal(n: &dyn ExpressionNode, i: i32) {
-//         let n = n.as_any().downcast_ref::<IntegerLiteralNode>();
-//         assert!(n.is_some());
-//         let n = n.unwrap();
-//         assert_eq!(n.token(), &Token::Int(i));
-//     }
-//
-//     fn assert_boolean_literal(n: &dyn ExpressionNode, b: bool) {
-//         let n = n.as_any().downcast_ref::<BooleanLiteralNode>();
-//         assert!(n.is_some());
-//         let n = n.unwrap();
-//         assert_eq!(n.token(), &(if b { Token::True } else { Token::False }));
-//     }
-//
-//     fn assert_identifier(n: &dyn ExpressionNode, s: &str) {
-//         let n = n.as_any().downcast_ref::<IdentifierNode>();
-//         assert!(n.is_some());
-//         let n = n.unwrap();
-//         assert_eq!(n.token(), &Token::Ident(s.to_string()));
-//     }
-//
-//     fn assert_unary_expression(n: &dyn ExpressionNode, op: &Token, i: i32) {
-//         let n = n.as_any().downcast_ref::<UnaryExpressionNode>();
-//         assert!(n.is_some());
-//         let n = n.unwrap();
-//         assert_eq!(n.operator(), op);
-//         let e = n.expression().as_any().downcast_ref::<IntegerLiteralNode>();
-//         assert!(e.is_some());
-//         let e = e.unwrap();
-//         assert_eq!(e.token(), &Token::Int(i));
-//     }
-//
-//     fn assert_binary_expression(n: &dyn ExpressionNode, op: &Token, i: i32, j: i32) {
-//         let n = n.as_any().downcast_ref::<BinaryExpressionNode>();
-//         assert!(n.is_some());
-//         let n = n.unwrap();
-//         assert_eq!(n.operator(), op);
-//
-//         let e = n.left().as_any().downcast_ref::<IntegerLiteralNode>();
-//         assert!(e.is_some());
-//         let e = e.unwrap();
-//         assert_eq!(e.token(), &Token::Int(i));
-//
-//         let e = n.right().as_any().downcast_ref::<IntegerLiteralNode>();
-//         assert!(e.is_some());
-//         let e = e.unwrap();
-//         assert_eq!(e.token(), &Token::Int(j));
-//     }
-//
-//     fn assert_binary_expression_2(n: &dyn ExpressionNode, op: &Token, s1: &str, s2: &str) {
-//         let n = n.as_any().downcast_ref::<BinaryExpressionNode>();
-//         assert!(n.is_some());
-//         let n = n.unwrap();
-//         assert_eq!(n.operator(), op);
-//
-//         let e = n.left().as_any().downcast_ref::<IdentifierNode>();
-//         assert!(e.is_some());
-//         let e = e.unwrap();
-//         assert_eq!(e.token(), &Token::Ident(s1.to_string()));
-//
-//         let e = n.right().as_any().downcast_ref::<IdentifierNode>();
-//         assert!(e.is_some());
-//         let e = e.unwrap();
-//         assert_eq!(e.token(), &Token::Ident(s2.to_string()));
-//     }
-//
-//     #[test]
-//     fn test01() {
-//         let input = r#"
-//             let x = 5;
-//             let ab = 10;
-//         "#;
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let root = parser.parse();
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(2, root.statements().len());
-//
-//         let names = vec!["x", "ab"];
-//         let values = vec![5, 10];
-//
-//         for i in 0..root.statements().len() {
-//             let s = root.statements()[i]
-//                 .as_any()
-//                 .downcast_ref::<LetStatementNode>();
-//             assert!(s.is_some());
-//             let s = s.unwrap();
-//             assert_eq!(s.token(), &Token::Let);
-//             assert_identifier(s.identifier(), names[i]);
-//             assert_integer_literal(s.expression(), values[i]);
-//         }
-//     }
-//
-//     #[test]
-//     fn test02() {
-//         let input = r#"
-//                     return 5;
-//                     return 10;
-//                 "#;
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let root = parser.parse();
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(2, root.statements().len());
-//
-//         let values = vec![5, 10];
-//
-//         for i in 0..root.statements().len() {
-//             let s = root.statements()[i]
-//                 .as_any()
-//                 .downcast_ref::<ReturnStatementNode>();
-//             assert!(s.is_some());
-//             let s = s.unwrap();
-//             assert_eq!(s.token(), &Token::Return);
-//             assert_integer_literal(s.expression(), values[i]);
-//         }
-//     }
-//
-//     #[test]
-//     fn test03() {
-//         let input = r#"
-//                 foo;;
-//                 bar;
-//             "#;
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let root = parser.parse();
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(2, root.statements().len());
-//
-//         let names = vec!["foo", "bar"];
-//
-//         for i in 0..root.statements().len() {
-//             let s = root.statements()[i]
-//                 .as_any()
-//                 .downcast_ref::<ExpressionStatementNode>();
-//             assert!(s.is_some());
-//             let s = s.unwrap();
-//             assert_eq!(s.token(), &Token::Ident(names[i].to_string()));
-//             assert_identifier(s.expression(), names[i]);
-//         }
-//     }
-//
-//     #[test]
-//     fn test04() {
-//         let input = r#"
-//                 5;
-//             "#;
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let root = parser.parse();
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(1, root.statements().len());
-//
-//         let s = root.statements()[0]
-//             .as_any()
-//             .downcast_ref::<ExpressionStatementNode>();
-//         assert!(s.is_some());
-//         let s = s.unwrap();
-//         assert_eq!(s.token(), &Token::Int(5));
-//         assert_integer_literal(s.expression(), 5);
-//     }
-//
-//     #[test]
-//     fn test05() {
-//         let input = r#"
-//                 true;
-//                 false;
-//             "#;
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let l = vec![true, false];
-//
-//         let root = parser.parse();
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(2, root.statements().len());
-//
-//         for i in 0..root.statements().len() {
-//             let s = root.statements()[i]
-//                 .as_any()
-//                 .downcast_ref::<ExpressionStatementNode>();
-//             assert!(s.is_some());
-//             let s = s.unwrap();
-//             assert_eq!(s.token(), &(if l[i] { Token::True } else { Token::False }));
-//             assert_boolean_literal(s.expression(), l[i]);
-//         }
-//     }
-//
-//     #[test]
-//     fn test06() {
-//         let input = r#"
-//                     !5;
-//                     -15;
-//                 "#;
-//
-//         let operators = vec![Token::Invert, Token::Minus];
-//         let values = vec![5, 15];
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let root = parser.parse();
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(2, root.statements().len());
-//
-//         for i in 0..root.statements().len() {
-//             let s = root.statements()[i]
-//                 .as_any()
-//                 .downcast_ref::<ExpressionStatementNode>();
-//             assert!(s.is_some());
-//             let s = s.unwrap();
-//             assert_eq!(s.token(), &operators[i]);
-//             assert_unary_expression(s.expression(), &operators[i], values[i]);
-//         }
-//     }
-//
-//     #[test]
-//     fn test07() {
-//         let input = r#"
-//                     1 + 2;
-//                     1 - 2;
-//                     1 * 2;
-//                     1 / 2;
-//                     1 > 2;
-//                     1 < 2;
-//                     1 == 2;
-//                     1 != 2;
-//                 "#;
-//
-//         let operators = vec![
-//             Token::Plus,
-//             Token::Minus,
-//             Token::Asterisk,
-//             Token::Slash,
-//             Token::Gt,
-//             Token::Lt,
-//             Token::Eq,
-//             Token::NotEq,
-//         ];
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let root = parser.parse();
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(8, root.statements().len());
-//
-//         for i in 0..root.statements().len() {
-//             let s = root.statements()[i]
-//                 .as_any()
-//                 .downcast_ref::<ExpressionStatementNode>();
-//             assert!(s.is_some());
-//             let s = s.unwrap();
-//             assert_eq!(s.token(), &Token::Int(1));
-//             assert_binary_expression(s.expression(), &operators[i], 1, 2);
-//         }
-//     }
-//
-//     #[test]
-//     fn test08() {
-//         let input = r#"
-//                     1 + 2 * 3;
-//                 "#;
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let root = parser.parse();
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(1, root.statements().len());
-//
-//         let s = root.statements()[0]
-//             .as_any()
-//             .downcast_ref::<ExpressionStatementNode>();
-//         assert!(s.is_some());
-//         let s = s.unwrap();
-//         assert_eq!(s.token(), &Token::Int(1));
-//         let v = s
-//             .expression()
-//             .as_any()
-//             .downcast_ref::<BinaryExpressionNode>();
-//         assert!(v.is_some());
-//         let v = v.unwrap();
-//         assert_eq!(v.operator(), &Token::Plus);
-//         assert_integer_literal(v.left(), 1);
-//         assert_binary_expression(v.right(), &Token::Asterisk, 2, 3);
-//     }
-//
-//     #[test]
-//     fn test09() {
-//         let input = r#"
-//                     (1 + 2) * 3;
-//                 "#;
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let root = parser.parse();
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(1, root.statements().len());
-//
-//         let s = root.statements()[0]
-//             .as_any()
-//             .downcast_ref::<ExpressionStatementNode>();
-//         assert!(s.is_some());
-//         let s = s.unwrap();
-//         assert_eq!(s.token(), &Token::Lparen);
-//         let v = s
-//             .expression()
-//             .as_any()
-//             .downcast_ref::<BinaryExpressionNode>();
-//         assert!(v.is_some());
-//         let v = v.unwrap();
-//         assert_eq!(v.operator(), &Token::Asterisk);
-//         assert_binary_expression(v.left(), &Token::Plus, 1, 2);
-//         assert_integer_literal(v.right(), 3);
-//     }
-//
-//     #[test]
-//     fn test10() {
-//         let input = r#"
-//                     if (x < y) { x }; 5;
-//                 "#;
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let root = parser.parse();
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(2, root.statements().len());
-//
-//         let s = root.statements()[0]
-//             .as_any()
-//             .downcast_ref::<ExpressionStatementNode>();
-//         assert!(s.is_some());
-//         let s = s.unwrap();
-//         assert_eq!(s.token(), &Token::If);
-//
-//         let v = s.expression().as_any().downcast_ref::<IfExpressionNode>();
-//         assert!(v.is_some());
-//         let v = v.unwrap();
-//         assert_eq!(v.token(), &Token::If);
-//
-//         assert_binary_expression_2(v.condition(), &Token::Lt, "x", "y");
-//
-//         assert!(v.else_value().is_none());
-//
-//         let if_value = v.if_value();
-//         assert_eq!(if_value.token(), &Token::Lbrace);
-//         let l = if_value.statements();
-//         assert_eq!(1, l.len());
-//         let n = l[0].as_any().downcast_ref::<ExpressionStatementNode>();
-//         assert!(n.is_some());
-//         let n = n.unwrap();
-//         assert_eq!(n.token(), &Token::Ident("x".to_string()));
-//         assert_identifier(n.expression(), "x");
-//
-//         let s = root.statements()[1]
-//             .as_any()
-//             .downcast_ref::<ExpressionStatementNode>();
-//         assert!(s.is_some());
-//         let s = s.unwrap();
-//         assert_eq!(s.token(), &Token::Int(5));
-//         assert_integer_literal(s.expression(), 5);
-//     }
-//
-//     #[test]
-//     fn test11() {
-//         let input = r#"
-//                         if (x != y) {
-//                             x
-//                         } else {
-//                             3;
-//                             4;
-//                         };
-//                     "#;
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let root = parser.parse();
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(1, root.statements().len());
-//
-//         let s = root.statements()[0]
-//             .as_any()
-//             .downcast_ref::<ExpressionStatementNode>();
-//         assert!(s.is_some());
-//         let s = s.unwrap();
-//         assert_eq!(s.token(), &Token::If);
-//
-//         let v = s.expression().as_any().downcast_ref::<IfExpressionNode>();
-//         assert!(v.is_some());
-//         let v = v.unwrap();
-//         assert_eq!(v.token(), &Token::If);
-//
-//         assert_binary_expression_2(v.condition(), &Token::NotEq, "x", "y");
-//
-//         let if_value = v.if_value();
-//         assert_eq!(if_value.token(), &Token::Lbrace);
-//         let l = if_value.statements();
-//         assert_eq!(1, l.len());
-//         let n = l[0].as_any().downcast_ref::<ExpressionStatementNode>();
-//         assert!(n.is_some());
-//         let n = n.unwrap();
-//         assert_eq!(n.token(), &Token::Ident("x".to_string()));
-//         assert_identifier(n.expression(), "x");
-//
-//         match v.else_value() {
-//             None => assert!(v.else_value().is_some()),
-//             Some(else_value) => {
-//                 assert_eq!(else_value.token(), &Token::Lbrace);
-//                 let l = else_value.statements();
-//                 assert_eq!(2, l.len());
-//
-//                 let n = l[0].as_any().downcast_ref::<ExpressionStatementNode>();
-//                 assert!(n.is_some());
-//                 let n = n.unwrap();
-//                 assert_eq!(n.token(), &Token::Int(3));
-//                 assert_integer_literal(n.expression(), 3);
-//
-//                 let n = l[1].as_any().downcast_ref::<ExpressionStatementNode>();
-//                 assert!(n.is_some());
-//                 let n = n.unwrap();
-//                 assert_eq!(n.token(), &Token::Int(4));
-//                 assert_integer_literal(n.expression(), 4);
-//             }
-//         }
-//     }
-//
-//     #[test]
-//     fn test12() {
-//         let input = r#"
-//                     fn () {
-//                         return x + y;
-//                     }
-//                     fn (x) {
-//                         return x + y;
-//                     }
-//                     fn (x, y,) {
-//                         return x + y;
-//                     }
-//                 "#;
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let root = parser.parse();
-//         println!("{:?}", root);
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(3, root.statements().len());
-//
-//         for i in 0..root.statements().len() {
-//             let s = root.statements()[i]
-//                 .as_any()
-//                 .downcast_ref::<ExpressionStatementNode>();
-//             assert!(s.is_some());
-//             let s = s.unwrap();
-//             assert_eq!(s.token(), &Token::Function);
-//
-//             let v = s
-//                 .expression()
-//                 .as_any()
-//                 .downcast_ref::<FunctionLiteralNode>();
-//             assert!(v.is_some());
-//             let v = v.unwrap();
-//             assert_eq!(v.token(), &Token::Function);
-//
-//             assert_eq!(i, v.parameters().len());
-//             if (i >= 1) {
-//                 assert_identifier(&v.parameters()[0], "x");
-//             }
-//             if (i == 2) {
-//                 assert_identifier(&v.parameters()[1], "y");
-//             }
-//
-//             let s = v.body();
-//             assert_eq!(s.token(), &Token::Lbrace);
-//             assert_eq!(1, s.statements().len());
-//             let s = v.body().statements()[0]
-//                 .as_any()
-//                 .downcast_ref::<ReturnStatementNode>();
-//             assert!(s.is_some());
-//             let s = s.unwrap();
-//             assert_eq!(s.token(), &Token::Return);
-//             assert_binary_expression_2(s.expression(), &Token::Plus, "x", "y");
-//         }
-//     }
-//
-//     #[test]
-//     fn test13() {
-//         let input = r#"
-//             f()
-//             f(a)
-//             f(a, 3 + 4,)
-//                 "#;
-//
-//         let mut parser = Parser::new(get_tokens(input));
-//
-//         let root = parser.parse();
-//         println!("{:?}", root);
-//         assert!(root.is_ok());
-//         let root = root.unwrap();
-//         println!("{:#?}", root);
-//
-//         assert_eq!(3, root.statements().len());
-//
-//         for i in 0..root.statements().len() {
-//             let s = root.statements()[i]
-//                 .as_any()
-//                 .downcast_ref::<ExpressionStatementNode>();
-//             assert!(s.is_some());
-//             let s = s.unwrap();
-//             assert_eq!(s.token(), &Token::Ident("f".to_string()));
-//
-//             let v = s.expression().as_any().downcast_ref::<CallExpressionNode>();
-//             assert!(v.is_some());
-//             let v = v.unwrap();
-//             assert_identifier(v.function(), "f");
-//
-//             assert_eq!(i, v.arguments().len());
-//             if (i >= 1) {
-//                 assert_identifier(v.arguments()[0].as_ref(), "a");
-//             }
-//             if (i == 2) {
-//                 assert_binary_expression(v.arguments()[1].as_ref(), &Token::Plus, 3, 4);
-//             }
-//         }
-//     }
-// }
+#[cfg(test)]
+mod tests {
+
+    use super::super::ast::*;
+    use super::super::lexer::Lexer;
+    use super::super::token::Token;
+    use super::Parser;
+
+    fn get_tokens(s: &str) -> Vec<Token> {
+        let mut lexer = Lexer::new(s);
+        let mut v = Vec::new();
+        loop {
+            let token = lexer.get_next_token();
+            if (token == Token::Eof) {
+                break;
+            }
+            v.push(token);
+        }
+        v.push(Token::Eof);
+        v
+    }
+
+    fn assert_integer_literal(n: &dyn ExpressionNode, i: i32) {
+        let n = n.as_any().downcast_ref::<IntegerLiteralNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_eq!(n.get_value(), i);
+    }
+
+    fn assert_boolean_literal(n: &dyn ExpressionNode, b: bool) {
+        let n = n.as_any().downcast_ref::<BooleanLiteralNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_eq!(n.get_value(), b);
+    }
+
+    fn assert_identifier(n: &dyn ExpressionNode, s: &str) {
+        let n = n.as_any().downcast_ref::<IdentifierNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_eq!(n.get_name(), s);
+    }
+
+    fn assert_unary_expression(n: &dyn ExpressionNode, op: &Token, i: i32) {
+        let n = n.as_any().downcast_ref::<UnaryExpressionNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_eq!(n.operator(), op);
+        let e = n.expression().as_any().downcast_ref::<IntegerLiteralNode>();
+        assert!(e.is_some());
+        let e = e.unwrap();
+        assert_eq!(e.get_value(), i);
+    }
+
+    fn assert_binary_expression(n: &dyn ExpressionNode, op: &Token, i: i32, j: i32) {
+        let n = n.as_any().downcast_ref::<BinaryExpressionNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_eq!(n.operator(), op);
+
+        let e = n.left().as_any().downcast_ref::<IntegerLiteralNode>();
+        assert!(e.is_some());
+        let e = e.unwrap();
+        assert_eq!(e.get_value(), i);
+
+        let e = n.right().as_any().downcast_ref::<IntegerLiteralNode>();
+        assert!(e.is_some());
+        let e = e.unwrap();
+        assert_eq!(e.get_value(), j);
+    }
+
+    fn assert_binary_expression_2(n: &dyn ExpressionNode, op: &Token, s1: &str, s2: &str) {
+        let n = n.as_any().downcast_ref::<BinaryExpressionNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_eq!(n.operator(), op);
+
+        let e = n.left().as_any().downcast_ref::<IdentifierNode>();
+        assert!(e.is_some());
+        let e = e.unwrap();
+        assert_eq!(e.get_name(), s1);
+
+        let e = n.right().as_any().downcast_ref::<IdentifierNode>();
+        assert!(e.is_some());
+        let e = e.unwrap();
+        assert_eq!(e.get_name(), s2);
+    }
+
+    #[test]
+    fn test01() {
+        let input = r#"
+            let x = 5;
+            let ab = 10;
+        "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(2, root.statements().len());
+
+        let names = vec!["x", "ab"];
+        let values = vec![5, 10];
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<LetStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_identifier(s.identifier(), names[i]);
+            assert_integer_literal(s.expression(), values[i]);
+        }
+    }
+
+    #[test]
+    fn test02() {
+        let input = r#"
+                    return 5;
+                    return 10;
+                "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(2, root.statements().len());
+
+        let values = vec![5, 10];
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ReturnStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_integer_literal(s.expression(), values[i]);
+        }
+    }
+
+    #[test]
+    fn test03() {
+        let input = r#"
+                foo;;
+                bar;
+            "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(2, root.statements().len());
+
+        let names = vec!["foo", "bar"];
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ExpressionStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_identifier(s.expression(), names[i]);
+        }
+    }
+
+    #[test]
+    fn test04() {
+        let input = r#"
+                5;
+            "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(1, root.statements().len());
+
+        let s = root.statements()[0]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_integer_literal(s.expression(), 5);
+    }
+
+    #[test]
+    fn test05() {
+        let input = r#"
+                true;
+                false;
+            "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let l = vec![true, false];
+
+        let root = parser.parse();
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(2, root.statements().len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ExpressionStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_boolean_literal(s.expression(), l[i]);
+        }
+    }
+
+    #[test]
+    fn test06() {
+        let input = r#"
+                    !5;
+                    -15;
+                "#;
+
+        let operators = vec![Token::Invert, Token::Minus];
+        let values = vec![5, 15];
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(2, root.statements().len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ExpressionStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_unary_expression(s.expression(), &operators[i], values[i]);
+        }
+    }
+
+    #[test]
+    fn test07() {
+        let input = r#"
+                    1 + 2;
+                    1 - 2;
+                    1 * 2;
+                    1 / 2;
+                    1 > 2;
+                    1 < 2;
+                    1 == 2;
+                    1 != 2;
+                "#;
+
+        let operators = vec![
+            Token::Plus,
+            Token::Minus,
+            Token::Asterisk,
+            Token::Slash,
+            Token::Gt,
+            Token::Lt,
+            Token::Eq,
+            Token::NotEq,
+        ];
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(8, root.statements().len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ExpressionStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_binary_expression(s.expression(), &operators[i], 1, 2);
+        }
+    }
+
+    #[test]
+    fn test08() {
+        let input = r#"
+                    1 + 2 * 3;
+                "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(1, root.statements().len());
+
+        let s = root.statements()[0]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        let v = s
+            .expression()
+            .as_any()
+            .downcast_ref::<BinaryExpressionNode>();
+        assert!(v.is_some());
+        let v = v.unwrap();
+        assert_eq!(v.operator(), &Token::Plus);
+        assert_integer_literal(v.left(), 1);
+        assert_binary_expression(v.right(), &Token::Asterisk, 2, 3);
+    }
+
+    #[test]
+    fn test09() {
+        let input = r#"
+                    (1 + 2) * 3;
+                "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(1, root.statements().len());
+
+        let s = root.statements()[0]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        let v = s
+            .expression()
+            .as_any()
+            .downcast_ref::<BinaryExpressionNode>();
+        assert!(v.is_some());
+        let v = v.unwrap();
+        assert_eq!(v.operator(), &Token::Asterisk);
+        assert_binary_expression(v.left(), &Token::Plus, 1, 2);
+        assert_integer_literal(v.right(), 3);
+    }
+
+    #[test]
+    fn test10() {
+        let input = r#"
+                    if (x < y) { x }; 5;
+                "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(2, root.statements().len());
+
+        let s = root.statements()[0]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+
+        let v = s.expression().as_any().downcast_ref::<IfExpressionNode>();
+        assert!(v.is_some());
+        let v = v.unwrap();
+
+        assert_binary_expression_2(v.condition(), &Token::Lt, "x", "y");
+
+        assert!(v.else_value().is_none());
+
+        let if_value = v.if_value();
+        let l = if_value.statements();
+        assert_eq!(1, l.len());
+        let n = l[0].as_any().downcast_ref::<ExpressionStatementNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_identifier(n.expression(), "x");
+
+        let s = root.statements()[1]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_integer_literal(s.expression(), 5);
+    }
+
+    #[test]
+    fn test11() {
+        let input = r#"
+                        if (x != y) {
+                            x
+                        } else {
+                            3;
+                            4;
+                        };
+                    "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(1, root.statements().len());
+
+        let s = root.statements()[0]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+
+        let v = s.expression().as_any().downcast_ref::<IfExpressionNode>();
+        assert!(v.is_some());
+        let v = v.unwrap();
+
+        assert_binary_expression_2(v.condition(), &Token::NotEq, "x", "y");
+
+        let if_value = v.if_value();
+        let l = if_value.statements();
+        assert_eq!(1, l.len());
+        let n = l[0].as_any().downcast_ref::<ExpressionStatementNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_identifier(n.expression(), "x");
+
+        match v.else_value() {
+            None => assert!(v.else_value().is_some()),
+            Some(else_value) => {
+                let l = else_value.statements();
+                assert_eq!(2, l.len());
+
+                let n = l[0].as_any().downcast_ref::<ExpressionStatementNode>();
+                assert!(n.is_some());
+                let n = n.unwrap();
+                assert_integer_literal(n.expression(), 3);
+
+                let n = l[1].as_any().downcast_ref::<ExpressionStatementNode>();
+                assert!(n.is_some());
+                let n = n.unwrap();
+                assert_integer_literal(n.expression(), 4);
+            }
+        }
+    }
+
+    #[test]
+    fn test12() {
+        let input = r#"
+                    fn () {
+                        return x + y;
+                    }
+                    fn (x) {
+                        return x + y;
+                    }
+                    fn (x, y,) {
+                        return x + y;
+                    }
+                "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        println!("{:?}", root);
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(3, root.statements().len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ExpressionStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+
+            let v = s
+                .expression()
+                .as_any()
+                .downcast_ref::<FunctionLiteralNode>();
+            assert!(v.is_some());
+            let v = v.unwrap();
+
+            assert_eq!(i, v.parameters().len());
+            if (i >= 1) {
+                assert_identifier(&v.parameters()[0], "x");
+            }
+            if (i == 2) {
+                assert_identifier(&v.parameters()[1], "y");
+            }
+
+            let s = v.body();
+            assert_eq!(1, s.statements().len());
+            let s = v.body().statements()[0]
+                .as_any()
+                .downcast_ref::<ReturnStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+            assert_binary_expression_2(s.expression(), &Token::Plus, "x", "y");
+        }
+    }
+
+    #[test]
+    fn test13() {
+        let input = r#"
+            f()
+            f(a)
+            f(a, 3 + 4,)
+                "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        println!("{:?}", root);
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(3, root.statements().len());
+
+        for i in 0..root.statements().len() {
+            let s = root.statements()[i]
+                .as_any()
+                .downcast_ref::<ExpressionStatementNode>();
+            assert!(s.is_some());
+            let s = s.unwrap();
+
+            let v = s.expression().as_any().downcast_ref::<CallExpressionNode>();
+            assert!(v.is_some());
+            let v = v.unwrap();
+            assert_identifier(v.function(), "f");
+
+            assert_eq!(i, v.arguments().len());
+            if (i >= 1) {
+                assert_identifier(v.arguments()[0].as_ref(), "a");
+            }
+            if (i == 2) {
+                assert_binary_expression(v.arguments()[1].as_ref(), &Token::Plus, 3, 4);
+            }
+        }
+    }
+}

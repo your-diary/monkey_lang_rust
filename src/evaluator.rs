@@ -337,265 +337,259 @@ fn eval_function_literal_node(n: &FunctionLiteralNode, env: &mut Environment) ->
     )))
 }
 
-// #[cfg(test)]
-// mod tests {
-//
-//     use std::rc::Rc;
-//
-//     use super::super::ast::*;
-//     use super::super::environment::Environment;
-//     use super::super::lexer::Lexer;
-//     use super::super::object::*;
-//     use super::super::parser::Parser;
-//     use super::super::token::Token;
-//     use super::eval;
-//     use super::EvalResult;
-//
-//     fn __eval(s: &str) -> EvalResult {
-//         let mut lexer = Lexer::new(s);
-//         let mut v = Vec::new();
-//         loop {
-//             let token = lexer.get_next_token();
-//             if (token == Token::Eof) {
-//                 break;
-//             }
-//             v.push(token);
-//         }
-//         v.push(Token::Eof);
-//         let root = Parser::new(v).parse();
-//         assert!(root.is_ok());
-//         let mut env = Environment::new(None);
-//         eval(&root.unwrap(), &mut env)
-//     }
-//
-//     fn read_and_eval(s: &str) -> Rc<dyn Object> {
-//         let r = __eval(s);
-//         match r {
-//             Ok(a) => a,
-//             Err(ref b) => {
-//                 assert!(r.is_ok(), "{}", b);
-//                 unreachable!();
-//             }
-//         }
-//     }
-//
-//     fn assert_error(s: &str, error_message: &str) {
-//         let r = __eval(s);
-//         if let Ok(ref e) = r {
-//             println!("{}", e);
-//             assert!(r.is_err());
-//         }
-//         if let Err(e) = r {
-//             assert!(e.contains(error_message));
-//         }
-//     }
-//
-//     fn assert_integer(s: &str, v: i32) {
-//         let o = read_and_eval(s);
-//         let o = o.as_any().downcast_ref::<Integer>();
-//         assert!(o.is_some());
-//         assert_eq!(v, o.unwrap().value());
-//     }
-//
-//     fn assert_boolean(s: &str, v: bool) {
-//         let o = read_and_eval(s);
-//         let o = o.as_any().downcast_ref::<Boolean>();
-//         assert!(o.is_some());
-//         assert_eq!(v, o.unwrap().value());
-//     }
-//
-//     fn assert_null(s: &str) {
-//         let o = read_and_eval(s);
-//         let o = o.as_any().downcast_ref::<Null>();
-//         assert!(o.is_some());
-//     }
-//
-//     #[test]
-//     fn test01() {
-//         //literal
-//         assert_integer(r#" 5 "#, 5);
-//         assert_boolean(r#" true "#, true);
-//         assert_boolean(r#" false "#, false);
-//
-//         //invert
-//         assert_boolean(r#" !true "#, false);
-//         assert_boolean(r#" !false "#, true);
-//         assert_boolean(r#" !!true "#, true);
-//         assert_boolean(r#" !!false "#, false);
-//         assert_boolean(r#" !0 "#, true);
-//         assert_boolean(r#" !!0 "#, false);
-//         assert_boolean(r#" !1 "#, false);
-//         assert_boolean(r#" !!1 "#, true);
-//
-//         //unary minus
-//         assert_integer(r#" -5 "#, -5);
-//         assert_integer(r#" --5 "#, 5);
-//
-//         //binary + - * /
-//         assert_integer(r#" 2 + 3 "#, 5);
-//         assert_integer(r#" 2 - 3 "#, -1);
-//         assert_integer(r#" 2 * 3 "#, 6);
-//         assert_integer(r#" 2 / 3 "#, 0);
-//         assert_integer(r#" 4 / 3 "#, 1);
-//         assert_integer(r#" 2 + 3 * 4"#, 14);
-//         assert_integer(r#" (2 + 3) * 4"#, 20);
-//
-//         //binary == != < >
-//         assert_boolean(r#" true == false "#, false);
-//         assert_boolean(r#" true == true "#, true);
-//         assert_boolean(r#" true != false "#, true);
-//         assert_boolean(r#" false != false "#, false);
-//         assert_boolean(r#" 1 == 0 "#, false);
-//         assert_boolean(r#" 1 == 1 "#, true);
-//         assert_boolean(r#" 1 != 0 "#, true);
-//         assert_boolean(r#" 0 != 0 "#, false);
-//         assert_boolean(r#" 0 != 0 "#, false);
-//         assert_boolean(r#" 1 > 0 "#, true);
-//         assert_boolean(r#" 0 > 0 "#, false);
-//         assert_boolean(r#" -1 > 0 "#, false);
-//         assert_boolean(r#" 1 < 0 "#, false);
-//         assert_boolean(r#" 0 < 0 "#, false);
-//         assert_boolean(r#" -1 < 0 "#, true);
-//     }
-//
-//     #[test]
-//     fn test02() {
-//         assert_integer(r#" if (true) { 10 } "#, 10);
-//         assert_null(r#" if (false) { 10 } "#);
-//         assert_boolean(r#" if (true) { false } "#, false);
-//         assert_integer(r#" if (false) { 10 } else { 20 }"#, 20);
-//         assert_error(r#" if (true) { let a = 3; } a"#, "not defined");
-//     }
-//
-//     #[test]
-//     fn test03() {
-//         assert_integer(r#" return 10; 15"#, 10);
-//         assert_integer(r#" 5; return 2 * 5; 15"#, 10);
-//         assert_boolean(r#" return true; false"#, true);
-//         assert_integer(
-//             r#" if (10 > 1) {
-//                     if (10 > 1) {
-//                         return 10;
-//                     }
-//                     return 1;
-//                 } "#,
-//             10,
-//         );
-//     }
-//
-//     #[test]
-//     fn test04() {
-//         assert_integer(r#" let a = 5; a; "#, 5);
-//         assert_integer(r#" let a = 5 * 5; a; "#, 25);
-//         assert_integer(r#" let a = 1; let b = a * 2; a + b "#, 3);
-//         assert_error(r#" let a = 1; b "#, "not defined");
-//         assert_error(r#" let a = 1; let a = 2; "#, "already");
-//         assert_integer(
-//             r#" {
-//                     let a = 1;
-//                     {
-//                         let a = 2;
-//                         a
-//                     }
-//                 }
-//              "#,
-//             2,
-//         );
-//         assert_integer(
-//             r#" {
-//                     let a = 1;
-//                     {
-//                         let a = 2;
-//                         a
-//                     }
-//                     a
-//                 }
-//              "#,
-//             1,
-//         );
-//     }
-//
-//     #[test]
-//     fn test05() {
-//         let s = r#"
-//             fn () { x + 2; }
-//         "#;
-//         let o = read_and_eval(s);
-//
-//         let o = o.as_any().downcast_ref::<Function>();
-//         assert!(o.is_some());
-//         let f = o.unwrap();
-//
-//         assert_eq!(0, f.parameters().len());
-//
-//         assert_eq!(1, f.body().statements().len());
-//         let s = f.body().statements()[0]
-//             .as_any()
-//             .downcast_ref::<ExpressionStatementNode>();
-//         assert!(s.is_some());
-//         let s = s.unwrap();
-//
-//         let s = s
-//             .expression()
-//             .as_any()
-//             .downcast_ref::<BinaryExpressionNode>();
-//         assert!(s.is_some());
-//         let s = s.unwrap();
-//
-//         assert_eq!(s.operator(), &Token::Plus);
-//
-//         let left = s.left().as_any().downcast_ref::<IdentifierNode>();
-//         assert!(left.is_some());
-//         match left.unwrap().token() {
-//             Token::Ident(n) if (n == "x") => (),
-//             _ => panic!(),
-//         }
-//
-//         let right = s.right().as_any().downcast_ref::<IntegerLiteralNode>();
-//         assert!(right.is_some());
-//         match right.unwrap().token() {
-//             Token::Int(2) => (),
-//             _ => panic!(),
-//         }
-//     }
-//
-//     #[test]
-//     fn test06() {
-//         assert_integer(r#" let f = fn(x) { x; }; f(5) "#, 5);
-//         assert_integer(r#" let f = fn(x, y) { x + y }; f(1, 2) "#, 3);
-//         assert_integer(r#" fn() { return 3; }() "#, 3);
-//         assert_integer(r#" let a = 3; let f = fn() { a }; f() "#, 3);
-//         assert_integer(
-//             r#" let f = fn() { return 3; 4 }; let a = f(); f(); return 100; "#,
-//             100,
-//         );
-//         assert_integer(
-//             r#" let f = fn(x) { fn(y) { x + y } }; let g = f(1); g(2) "#,
-//             3,
-//         );
-//         assert_integer(
-//             r#"
-//                 let f = fn(x) { fn(y) { fn(z) { x + y + z } } }; let g = f(1); let h = g(2); h(3)
-//             "#,
-//             6,
-//         );
-//         //TODO uncomment after implementing assignment
-//         //         assert_integer(
-//         //             r#" let a = 1; let f = fn(x) { fn(y) { x + y } }; let g = f(a); a = 100; g(2) "#,
-//         //             3,
-//         //         );
-//         assert_integer(
-//             r#" let f = fn(g) { g(10) }; let g = fn(x) { x * 10 }; f(g) "#,
-//             100,
-//         );
-//         assert_integer(
-//             r#" let factorial = fn(x) { if (x == 0) { return 1; } return x * factorial(x - 1); }; factorial(4) "#,
-//             24,
-//         );
-//         // assert_integer(r#" let a = 3; let f = fn() { a }; a = 10; f() "#, 10); //TODO uncomment after implementing assignment
-//         assert_error(r#" let f = 3; f(3) "#, "not a function");
-//         assert_error(r#" g(3) "#, "not defined");
-//         assert_error(r#" let f = fn(x) { x; }; f(5, 10) "#, "number mismatch");
-//         assert_error(r#" 1(3) "#, "can be called");
-//     }
-// }
+#[cfg(test)]
+mod tests {
+
+    use std::rc::Rc;
+
+    use super::super::ast::*;
+    use super::super::environment::Environment;
+    use super::super::lexer::Lexer;
+    use super::super::object::*;
+    use super::super::parser::Parser;
+    use super::super::token::Token;
+    use super::eval;
+    use super::EvalResult;
+
+    fn __eval(s: &str) -> EvalResult {
+        let mut lexer = Lexer::new(s);
+        let mut v = Vec::new();
+        loop {
+            let token = lexer.get_next_token();
+            if (token == Token::Eof) {
+                break;
+            }
+            v.push(token);
+        }
+        v.push(Token::Eof);
+        let root = Parser::new(v).parse();
+        assert!(root.is_ok());
+        let mut env = Environment::new(None);
+        eval(&root.unwrap(), &mut env)
+    }
+
+    fn read_and_eval(s: &str) -> Rc<dyn Object> {
+        let r = __eval(s);
+        match r {
+            Ok(a) => a,
+            Err(ref b) => {
+                assert!(r.is_ok(), "{}", b);
+                unreachable!();
+            }
+        }
+    }
+
+    fn assert_error(s: &str, error_message: &str) {
+        let r = __eval(s);
+        if let Ok(ref e) = r {
+            println!("{}", e);
+            assert!(r.is_err());
+        }
+        if let Err(e) = r {
+            assert!(e.contains(error_message));
+        }
+    }
+
+    fn assert_integer(s: &str, v: i32) {
+        let o = read_and_eval(s);
+        let o = o.as_any().downcast_ref::<Integer>();
+        assert!(o.is_some());
+        assert_eq!(v, o.unwrap().value());
+    }
+
+    fn assert_boolean(s: &str, v: bool) {
+        let o = read_and_eval(s);
+        let o = o.as_any().downcast_ref::<Boolean>();
+        assert!(o.is_some());
+        assert_eq!(v, o.unwrap().value());
+    }
+
+    fn assert_null(s: &str) {
+        let o = read_and_eval(s);
+        let o = o.as_any().downcast_ref::<Null>();
+        assert!(o.is_some());
+    }
+
+    #[test]
+    fn test01() {
+        //literal
+        assert_integer(r#" 5 "#, 5);
+        assert_boolean(r#" true "#, true);
+        assert_boolean(r#" false "#, false);
+
+        //invert
+        assert_boolean(r#" !true "#, false);
+        assert_boolean(r#" !false "#, true);
+        assert_boolean(r#" !!true "#, true);
+        assert_boolean(r#" !!false "#, false);
+        assert_boolean(r#" !0 "#, true);
+        assert_boolean(r#" !!0 "#, false);
+        assert_boolean(r#" !1 "#, false);
+        assert_boolean(r#" !!1 "#, true);
+
+        //unary minus
+        assert_integer(r#" -5 "#, -5);
+        assert_integer(r#" --5 "#, 5);
+
+        //binary + - * /
+        assert_integer(r#" 2 + 3 "#, 5);
+        assert_integer(r#" 2 - 3 "#, -1);
+        assert_integer(r#" 2 * 3 "#, 6);
+        assert_integer(r#" 2 / 3 "#, 0);
+        assert_integer(r#" 4 / 3 "#, 1);
+        assert_integer(r#" 2 + 3 * 4"#, 14);
+        assert_integer(r#" (2 + 3) * 4"#, 20);
+
+        //binary == != < >
+        assert_boolean(r#" true == false "#, false);
+        assert_boolean(r#" true == true "#, true);
+        assert_boolean(r#" true != false "#, true);
+        assert_boolean(r#" false != false "#, false);
+        assert_boolean(r#" 1 == 0 "#, false);
+        assert_boolean(r#" 1 == 1 "#, true);
+        assert_boolean(r#" 1 != 0 "#, true);
+        assert_boolean(r#" 0 != 0 "#, false);
+        assert_boolean(r#" 0 != 0 "#, false);
+        assert_boolean(r#" 1 > 0 "#, true);
+        assert_boolean(r#" 0 > 0 "#, false);
+        assert_boolean(r#" -1 > 0 "#, false);
+        assert_boolean(r#" 1 < 0 "#, false);
+        assert_boolean(r#" 0 < 0 "#, false);
+        assert_boolean(r#" -1 < 0 "#, true);
+    }
+
+    #[test]
+    fn test02() {
+        assert_integer(r#" if (true) { 10 } "#, 10);
+        assert_null(r#" if (false) { 10 } "#);
+        assert_boolean(r#" if (true) { false } "#, false);
+        assert_integer(r#" if (false) { 10 } else { 20 }"#, 20);
+        assert_error(r#" if (true) { let a = 3; } a"#, "not defined");
+    }
+
+    #[test]
+    fn test03() {
+        assert_integer(r#" return 10; 15"#, 10);
+        assert_integer(r#" 5; return 2 * 5; 15"#, 10);
+        assert_boolean(r#" return true; false"#, true);
+        assert_integer(
+            r#" if (10 > 1) {
+                    if (10 > 1) {
+                        return 10;
+                    }
+                    return 1;
+                } "#,
+            10,
+        );
+    }
+
+    #[test]
+    fn test04() {
+        assert_integer(r#" let a = 5; a; "#, 5);
+        assert_integer(r#" let a = 5 * 5; a; "#, 25);
+        assert_integer(r#" let a = 1; let b = a * 2; a + b "#, 3);
+        assert_error(r#" let a = 1; b "#, "not defined");
+        assert_error(r#" let a = 1; let a = 2; "#, "already");
+        assert_integer(
+            r#" {
+                    let a = 1;
+                    {
+                        let a = 2;
+                        a
+                    }
+                }
+             "#,
+            2,
+        );
+        assert_integer(
+            r#" {
+                    let a = 1;
+                    {
+                        let a = 2;
+                        a
+                    }
+                    a
+                }
+             "#,
+            1,
+        );
+    }
+
+    #[test]
+    fn test05() {
+        let s = r#"
+            fn () { x + 2; }
+        "#;
+        let o = read_and_eval(s);
+
+        let o = o.as_any().downcast_ref::<Function>();
+        assert!(o.is_some());
+        let f = o.unwrap();
+
+        assert_eq!(0, f.parameters().len());
+
+        assert_eq!(1, f.body().statements().len());
+        let s = f.body().statements()[0]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+
+        let s = s
+            .expression()
+            .as_any()
+            .downcast_ref::<BinaryExpressionNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+
+        assert_eq!(s.operator(), &Token::Plus);
+
+        let left = s.left().as_any().downcast_ref::<IdentifierNode>();
+        assert!(left.is_some());
+        assert_eq!(left.unwrap().get_name(), "x");
+
+        let right = s.right().as_any().downcast_ref::<IntegerLiteralNode>();
+        assert!(right.is_some());
+        assert_eq!(right.unwrap().get_value(), 2);
+    }
+
+    #[test]
+    fn test06() {
+        assert_integer(r#" let f = fn(x) { x; }; f(5) "#, 5);
+        assert_integer(r#" let f = fn(x, y) { x + y }; f(1, 2) "#, 3);
+        assert_integer(r#" fn() { return 3; }() "#, 3);
+        assert_integer(r#" let a = 3; let f = fn() { a }; f() "#, 3);
+        assert_integer(
+            r#" let f = fn() { return 3; 4 }; let a = f(); f(); return 100; "#,
+            100,
+        );
+        assert_integer(
+            r#" let f = fn(x) { fn(y) { x + y } }; let g = f(1); g(2) "#,
+            3,
+        );
+        assert_integer(
+            r#"
+                let f = fn(x) { fn(y) { fn(z) { x + y + z } } }; let g = f(1); let h = g(2); h(3)
+            "#,
+            6,
+        );
+        //TODO uncomment after implementing assignment
+        //         assert_integer(
+        //             r#" let a = 1; let f = fn(x) { fn(y) { x + y } }; let g = f(a); a = 100; g(2) "#,
+        //             3,
+        //         );
+        assert_integer(
+            r#" let f = fn(g) { g(10) }; let g = fn(x) { x * 10 }; f(g) "#,
+            100,
+        );
+        assert_integer(
+            r#" let factorial = fn(x) { if (x == 0) { return 1; } return x * factorial(x - 1); }; factorial(4) "#,
+            24,
+        );
+        // assert_integer(r#" let a = 3; let f = fn() { a }; a = 10; f() "#, 10); //TODO uncomment after implementing assignment
+        assert_error(r#" let f = 3; f(3) "#, "not a function");
+        assert_error(r#" g(3) "#, "not defined");
+        assert_error(r#" let f = fn(x) { x; }; f(5, 10) "#, "number mismatch");
+        assert_error(r#" 1(3) "#, "can be called");
+    }
+}

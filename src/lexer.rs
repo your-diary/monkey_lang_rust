@@ -93,151 +93,151 @@ impl Lexer {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//
-//     use super::super::token::Token;
-//     use super::Lexer;
-//
-//     #[test]
-//     fn test01() {
-//         let input = "=+(){},;";
-//
-//         let expected = vec![
-//             Token::Assign,
-//             Token::Plus,
-//             Token::Lparen,
-//             Token::Rparen,
-//             Token::Lbrace,
-//             Token::Rbrace,
-//             Token::Comma,
-//             Token::Semicolon,
-//             Token::Eof,
-//         ];
-//
-//         let mut lexer = Lexer::new(input);
-//
-//         for expected_token in expected {
-//             let token = lexer.get_next_token();
-//             assert_eq!(expected_token, token);
-//         }
-//     }
-//
-//     #[test]
-//     fn test02() {
-//         let input = r#"
-//             let five = 5;
-//             let ten2 = 10;
-//             let add = fn(x, y) {
-//                 x + y;
-//             };
-//
-//             let result = add(five, ten);
-//
-//             !-/*5;
-//             5 < 10 > 5;
-//
-//             if (5 < 10) {
-//                 return true;
-//             } else {
-//                 return false;
-//             }
-//
-//             10 ==10;
-//             10 != 9;
-//         "#;
-//
-//         let expected = vec![
-//             //1
-//             Token::Let,
-//             Token::Ident("five".to_string()),
-//             Token::Assign,
-//             Token::Int(5),
-//             Token::Semicolon,
-//             //2
-//             Token::Let,
-//             Token::Ident("ten2".to_string()),
-//             Token::Assign,
-//             Token::Int(10),
-//             Token::Semicolon,
-//             //3
-//             Token::Let,
-//             Token::Ident("add".to_string()),
-//             Token::Assign,
-//             Token::Function,
-//             Token::Lparen,
-//             Token::Ident("x".to_string()),
-//             Token::Comma,
-//             Token::Ident("y".to_string()),
-//             Token::Rparen,
-//             Token::Lbrace,
-//             Token::Ident("x".to_string()),
-//             Token::Plus,
-//             Token::Ident("y".to_string()),
-//             Token::Semicolon,
-//             Token::Rbrace,
-//             Token::Semicolon,
-//             //4
-//             Token::Let,
-//             Token::Ident("result".to_string()),
-//             Token::Assign,
-//             Token::Ident("add".to_string()),
-//             Token::Lparen,
-//             Token::Ident("five".to_string()),
-//             Token::Comma,
-//             Token::Ident("ten".to_string()),
-//             Token::Rparen,
-//             Token::Semicolon,
-//             //5
-//             Token::Invert,
-//             Token::Minus,
-//             Token::Slash,
-//             Token::Asterisk,
-//             Token::Int(5),
-//             Token::Semicolon,
-//             //6
-//             Token::Int(5),
-//             Token::Lt,
-//             Token::Int(10),
-//             Token::Gt,
-//             Token::Int(5),
-//             Token::Semicolon,
-//             //7
-//             Token::If,
-//             Token::Lparen,
-//             Token::Int(5),
-//             Token::Lt,
-//             Token::Int(10),
-//             Token::Rparen,
-//             Token::Lbrace,
-//             Token::Return,
-//             Token::True,
-//             Token::Semicolon,
-//             Token::Rbrace,
-//             Token::Else,
-//             Token::Lbrace,
-//             Token::Return,
-//             Token::False,
-//             Token::Semicolon,
-//             Token::Rbrace,
-//             //8
-//             Token::Int(10),
-//             Token::Eq,
-//             Token::Int(10),
-//             Token::Semicolon,
-//             Token::Int(10),
-//             Token::NotEq,
-//             Token::Int(9),
-//             Token::Semicolon,
-//             //9
-//             Token::Eof,
-//         ];
-//
-//         let mut lexer = Lexer::new(input);
-//
-//         for expected_token in expected {
-//             let token = lexer.get_next_token();
-//             assert_eq!(expected_token, token);
-//         }
-//     }
-// }
+#[cfg(test)]
+mod tests {
+
+    use super::super::token::Token;
+    use super::Lexer;
+
+    #[test]
+    fn test01() {
+        let input = "=+(){},;";
+
+        let expected = vec![
+            Token::Assign,
+            Token::Plus,
+            Token::Lparen,
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Rbrace,
+            Token::Comma,
+            Token::Semicolon,
+            Token::Eof,
+        ];
+
+        let mut lexer = Lexer::new(input);
+
+        for expected_token in expected {
+            let token = lexer.get_next_token();
+            assert_eq!(expected_token, token);
+        }
+    }
+
+    #[test]
+    fn test02() {
+        let input = r#"
+            let five = 5;
+            let ten2 = 10;
+            let add = fn(x, y) {
+                x + y;
+            };
+
+            let result = add(five, ten);
+
+            !-/*5;
+            5 < 10 > 5;
+
+            if (5 < 10) {
+                return true;
+            } else {
+                return false;
+            }
+
+            10 ==10;
+            10 != 9;
+        "#;
+
+        let expected = vec![
+            //1
+            Token::Let,
+            Token::Ident("five".to_string()),
+            Token::Assign,
+            Token::Int(5),
+            Token::Semicolon,
+            //2
+            Token::Let,
+            Token::Ident("ten2".to_string()),
+            Token::Assign,
+            Token::Int(10),
+            Token::Semicolon,
+            //3
+            Token::Let,
+            Token::Ident("add".to_string()),
+            Token::Assign,
+            Token::Function,
+            Token::Lparen,
+            Token::Ident("x".to_string()),
+            Token::Comma,
+            Token::Ident("y".to_string()),
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Ident("x".to_string()),
+            Token::Plus,
+            Token::Ident("y".to_string()),
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Semicolon,
+            //4
+            Token::Let,
+            Token::Ident("result".to_string()),
+            Token::Assign,
+            Token::Ident("add".to_string()),
+            Token::Lparen,
+            Token::Ident("five".to_string()),
+            Token::Comma,
+            Token::Ident("ten".to_string()),
+            Token::Rparen,
+            Token::Semicolon,
+            //5
+            Token::Invert,
+            Token::Minus,
+            Token::Slash,
+            Token::Asterisk,
+            Token::Int(5),
+            Token::Semicolon,
+            //6
+            Token::Int(5),
+            Token::Lt,
+            Token::Int(10),
+            Token::Gt,
+            Token::Int(5),
+            Token::Semicolon,
+            //7
+            Token::If,
+            Token::Lparen,
+            Token::Int(5),
+            Token::Lt,
+            Token::Int(10),
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Return,
+            Token::True,
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Else,
+            Token::Lbrace,
+            Token::Return,
+            Token::False,
+            Token::Semicolon,
+            Token::Rbrace,
+            //8
+            Token::Int(10),
+            Token::Eq,
+            Token::Int(10),
+            Token::Semicolon,
+            Token::Int(10),
+            Token::NotEq,
+            Token::Int(9),
+            Token::Semicolon,
+            //9
+            Token::Eof,
+        ];
+
+        let mut lexer = Lexer::new(input);
+
+        for expected_token in expected {
+            let token = lexer.get_next_token();
+            assert_eq!(expected_token, token);
+        }
+    }
+}
