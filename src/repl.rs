@@ -2,24 +2,24 @@ use rustyline;
 
 use super::environment::Environment;
 use super::evaluator;
-use super::lexer::Lexer;
+use super::lexer::{Lexer, LexerResult};
 use super::parser::Parser;
 use super::token::Token;
 
 const HISTORY_FILE: &str = "./.history";
 
-fn get_tokens(s: &str) -> Vec<Token> {
+fn get_tokens(s: &str) -> LexerResult<Vec<Token>> {
     let mut lexer = Lexer::new(s);
     let mut v = Vec::new();
     loop {
-        let token = lexer.get_next_token();
+        let token = lexer.get_next_token()?;
         if (token == Token::Eof) {
             break;
         }
         v.push(token);
     }
     v.push(Token::Eof);
-    v
+    Ok(v)
 }
 
 pub fn start() -> rustyline::Result<()> {
@@ -43,12 +43,19 @@ pub fn start() -> rustyline::Result<()> {
                     continue;
                 }
 
-                let mut parser = Parser::new(get_tokens(&line));
-
-                match parser.parse() {
+                let mut parser = Parser::new(match get_tokens(&line) {
                     Err(e) => {
                         println!("\u{001B}[091m{}\u{001B}[0m", e);
+                        continue;
                     }
+                    Ok(v) => {
+                        println!("{:?}", v);
+                        v
+                    }
+                });
+
+                match parser.parse() {
+                    Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),
                     Ok(e) => {
                         // println!("{:#?}", e);
                         match evaluator::eval(&e, &mut env) {

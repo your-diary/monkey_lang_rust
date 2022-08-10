@@ -1,6 +1,8 @@
 use super::token::{self, Token};
 use super::util;
 
+pub type LexerResult<T> = Result<T, String>;
+
 pub struct Lexer {
     input: Vec<char>,
     position: usize,  //last read position
@@ -42,22 +44,59 @@ impl Lexer {
         self.input[position..self.position].iter().collect()
     }
 
-    fn read_number(&mut self) -> String {
+    fn read_number(&mut self) -> LexerResult<String> {
         let position = self.position;
-        while (self.ch.is_some() && self.ch.unwrap().is_ascii_digit()) {
+        while (self.ch.is_some() && util::is_number(self.ch.unwrap())) {
             self.read_next_char();
         }
-        self.input[position..self.position].iter().collect()
+        let l = &self.input[position..self.position];
+        if (l.iter().filter(|c| (**c == '.')).count() >= 2) {
+            return Err("two or more dot found in a number literal".to_string());
+        }
+        Ok(l.iter().collect())
     }
 
-    pub fn get_next_token(&mut self) -> Token {
+    fn read_string(&mut self) -> LexerResult<String> {
+        let position = self.position;
+        self.read_next_char();
+        while (self.ch.is_some() && (self.ch.unwrap() != '"')) {
+            self.read_next_char();
+        }
+        if (self.ch.is_none()) {
+            return Err("unexpected end of a string literal".to_string());
+        }
+        let ret = self.input[position..self.position + 1].iter().collect();
+        self.read_next_char();
+        Ok(ret)
+    }
+
+    fn read_character(&mut self) -> LexerResult<String> {
+        self.read_next_char();
+        if (self.ch.is_none() || (self.ch.unwrap() == '\'')) {
+            return Err("unexpected end of a character literal".to_string());
+        }
+        let ret = format!("'{}'", self.ch.unwrap());
+        self.read_next_char();
+        if (self.ch.is_none()) {
+            return Err("unexpected end of a character literal".to_string());
+        }
+        if (self.ch.unwrap() != '\'') {
+            return Err("character literal can contain only one character".to_string());
+        }
+        self.read_next_char();
+        Ok(ret)
+    }
+
+    pub fn get_next_token(&mut self) -> LexerResult<Token> {
         self.eat_whitespace();
         if (self.ch.is_none()) {
-            return Token::Eof;
+            return Ok(Token::Eof);
         }
         let sequence: String = match self.ch.unwrap() {
-            c if c.is_ascii_digit() => self.read_number(),
+            c if util::is_number(c) => self.read_number()?,
             c if util::is_identifier(c) => self.read_identifier(), //this includes a keyword such as `if`
+            '"' => self.read_string()?,
+            '\'' => self.read_character()?,
             //operators
             c => {
                 let ret = match c {
@@ -86,12 +125,32 @@ impl Lexer {
             }
         };
         match token::lookup_token(&sequence) {
-            Token::Ident(_) => Token::Ident(sequence),
-            Token::Int(_) => match sequence.parse() {
-                Err(_) => Token::Illegal, //overflow
-                Ok(i) => Token::Int(i),
+            None => Err(format!(
+                "not yet implemented or a lexer bug: `{}`",
+                sequence
+            )),
+            Some(t) => match t {
+                Token::Ident(_) => Ok(Token::Ident(sequence)),
+                Token::Float(_) => {
+                    if (sequence.contains('.')) {
+                        match sequence.parse::<f64>() {
+                            Err(e) => Err(e.to_string()),
+                            Ok(i) => Ok(Token::Float(i)),
+                        }
+                    } else {
+                        match sequence.parse::<i32>() {
+                            Err(e) => Err(e.to_string()),
+                            Ok(i) => Ok(Token::Int(i)),
+                        }
+                    }
+                }
+                Token::String(_) => {
+                    let l: Vec<char> = sequence.chars().collect();
+                    Ok(Token::String(l[1..l.len() - 1].iter().collect()))
+                }
+                Token::Char(_) => Ok(Token::Char(sequence.chars().nth(1).unwrap())),
+                t => Ok(t),
             },
-            t => t,
         }
     }
 }
