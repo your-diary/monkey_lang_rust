@@ -358,7 +358,7 @@ mod tests {
         let mut lexer = Lexer::new(s);
         let mut v = Vec::new();
         loop {
-            let token = lexer.get_next_token();
+            let token = lexer.get_next_token().unwrap();
             if (token == Token::Eof) {
                 break;
             }

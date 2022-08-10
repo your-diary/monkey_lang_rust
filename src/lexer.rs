@@ -53,6 +53,9 @@ impl Lexer {
         if (l.iter().filter(|c| (**c == '.')).count() >= 2) {
             return Err("two or more dot found in a number literal".to_string());
         }
+        if ((l.len() == 1) && (l[0] == '.')) {
+            return Err("isolated `.` found".to_string());
+        }
         Ok(l.iter().collect())
     }
 
@@ -181,7 +184,8 @@ mod tests {
 
         for expected_token in expected {
             let token = lexer.get_next_token();
-            assert_eq!(expected_token, token);
+            assert!(token.is_ok());
+            assert_eq!(expected_token, token.unwrap());
         }
     }
 
@@ -299,7 +303,76 @@ mod tests {
 
         for expected_token in expected {
             let token = lexer.get_next_token();
-            assert_eq!(expected_token, token);
+            assert!(token.is_ok());
+            assert_eq!(expected_token, token.unwrap());
+        }
+    }
+
+    #[test]
+    fn test03() {
+        let input = vec![
+            //1
+            r#"1"#,
+            r#"1."#,
+            r#"."#,
+            r#".0"#,
+            r#"3.14"#,
+            r#"1.2.3"#,
+            r#"1.2.3.4"#,
+            //2
+            r#"""#,
+            r#""abc"#,
+            r#""""#,
+            r#""a""#,
+            r#""ab""#,
+            r#""あ""#,
+            r#""あい""#,
+            //3
+            r#"'"#,
+            r#"'a"#,
+            r#"''"#,
+            r#"'ab'"#,
+            r#"'a'"#,
+            r#"'あ'"#,
+        ];
+
+        let expected = vec![
+            //1
+            Ok(Token::Int(1)),
+            Ok(Token::Float(1.0)),
+            Err("isolated `.` found".to_string()),
+            Ok(Token::Float(0.0)),
+            Ok(Token::Float(3.14)),
+            Err("two or more".to_string()),
+            Err("two or more".to_string()),
+            //2
+            Err("unexpected end".to_string()),
+            Err("unexpected end".to_string()),
+            Ok(Token::String("".to_string())),
+            Ok(Token::String("a".to_string())),
+            Ok(Token::String("ab".to_string())),
+            Ok(Token::String("あ".to_string())),
+            Ok(Token::String("あい".to_string())),
+            //3
+            Err("unexpected end".to_string()),
+            Err("unexpected end".to_string()),
+            Err("unexpected end".to_string()),
+            Err("only one".to_string()),
+            Ok(Token::Char('a')),
+            Ok(Token::Char('あ')),
+        ];
+
+        assert_eq!(input.len(), expected.len());
+
+        for i in 0..input.len() {
+            let mut lexer = Lexer::new(input[i]);
+            match lexer.get_next_token() {
+                Ok(t) => assert_eq!(expected[i], Ok(t)),
+                Err(t) => match &expected[i] {
+                    Ok(_) => assert!(expected[i].is_err()),
+                    Err(e) => assert!(t.contains(e)),
+                },
+            }
         }
     }
 }
