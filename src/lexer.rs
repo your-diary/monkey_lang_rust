@@ -60,17 +60,29 @@ impl Lexer {
     }
 
     fn read_string(&mut self) -> LexerResult<String> {
-        let position = self.position;
-        self.read_next_char();
-        while (self.ch.is_some() && (self.ch.unwrap() != '"')) {
+        let mut l = vec!['"'];
+        loop {
             self.read_next_char();
+            if (self.ch.is_none()) {
+                return Err("unexpected end of a string literal".to_string());
+            }
+            if (self.ch.unwrap() == '"') {
+                l.push('"');
+                break;
+            }
+            l.push(match self.ch.unwrap() {
+                '\\' => {
+                    self.read_next_char();
+                    if (self.ch.is_none()) {
+                        return Err("unexpected end of a string literal".to_string());
+                    }
+                    util::parse_escaped_character(self.ch.unwrap())
+                }
+                c => c,
+            });
         }
-        if (self.ch.is_none()) {
-            return Err("unexpected end of a string literal".to_string());
-        }
-        let ret = self.input[position..self.position + 1].iter().collect();
         self.read_next_char();
-        Ok(ret)
+        Ok(l.iter().collect())
     }
 
     fn read_character(&mut self) -> LexerResult<String> {
@@ -78,7 +90,18 @@ impl Lexer {
         if (self.ch.is_none() || (self.ch.unwrap() == '\'')) {
             return Err("unexpected end of a character literal".to_string());
         }
-        let ret = format!("'{}'", self.ch.unwrap());
+        let ret = match self.ch.unwrap() {
+            '\\' => {
+                self.read_next_char();
+                if (self.ch.is_none()) {
+                    return Err("unexpected end of a character literal".to_string());
+                }
+                vec!['\'', util::parse_escaped_character(self.ch.unwrap()), '\'']
+                    .iter()
+                    .collect()
+            }
+            c => format!("'{}'", c),
+        };
         self.read_next_char();
         if (self.ch.is_none()) {
             return Err("unexpected end of a character literal".to_string());
@@ -327,6 +350,11 @@ mod tests {
             r#""ab""#,
             r#""あ""#,
             r#""あい""#,
+            r#""\"#,
+            r#""\""#,
+            r#""\n""#,
+            r#""\n\t""#,
+            r#""\n\"""#,
             //3
             r#"'"#,
             r#"'a"#,
@@ -334,6 +362,16 @@ mod tests {
             r#"'ab'"#,
             r#"'a'"#,
             r#"'あ'"#,
+            r#"'\"#,
+            r#"'\'"#,
+            r#"'\\'"#,
+            r#"'\''"#,
+            r#"'\"'"#,
+            r#"'\0'"#,
+            r#"'\n'"#,
+            r#"'\t'"#,
+            r#"'\r'"#,
+            r#"'\p'"#,
         ];
 
         let expected = vec![
@@ -353,6 +391,11 @@ mod tests {
             Ok(Token::String("ab".to_string())),
             Ok(Token::String("あ".to_string())),
             Ok(Token::String("あい".to_string())),
+            Err("unexpected end".to_string()),
+            Err("unexpected end".to_string()),
+            Ok(Token::String("\n".to_string())),
+            Ok(Token::String("\n\t".to_string())),
+            Ok(Token::String("\n\"".to_string())),
             //3
             Err("unexpected end".to_string()),
             Err("unexpected end".to_string()),
@@ -360,11 +403,22 @@ mod tests {
             Err("only one".to_string()),
             Ok(Token::Char('a')),
             Ok(Token::Char('あ')),
+            Err("unexpected end".to_string()),
+            Err("unexpected end".to_string()),
+            Ok(Token::Char('\\')),
+            Ok(Token::Char('\'')),
+            Ok(Token::Char('"')),
+            Ok(Token::Char('\0')),
+            Ok(Token::Char('\n')),
+            Ok(Token::Char('\t')),
+            Ok(Token::Char('\r')),
+            Ok(Token::Char('p')),
         ];
 
         assert_eq!(input.len(), expected.len());
 
         for i in 0..input.len() {
+            println!("[{}]", input[i]);
             let mut lexer = Lexer::new(input[i]);
             match lexer.get_next_token() {
                 Ok(t) => assert_eq!(expected[i], Ok(t)),
