@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use super::ast::*;
 use super::environment::Environment;
+use super::evaluator::EvalResult;
 
 /*-------------------------------------*/
 
@@ -181,6 +182,12 @@ impl Display for ReturnValue {
 
 /*-------------------------------------*/
 
+//implemented by `Function` and `BuiltinFunction`
+pub trait FunctionBase: Object {
+    fn num_parameter(&self) -> usize;
+    fn parameters(&self) -> &Vec<IdentifierNode>;
+}
+
 #[derive(Clone)]
 pub struct Function {
     parameters: Vec<IdentifierNode>,
@@ -190,6 +197,14 @@ pub struct Function {
 impl Object for Function {
     fn as_any(&self) -> &dyn Any {
         self
+    }
+}
+impl FunctionBase for Function {
+    fn num_parameter(&self) -> usize {
+        self.parameters.len()
+    }
+    fn parameters(&self) -> &Vec<IdentifierNode> {
+        &self.parameters
     }
 }
 impl Function {
@@ -204,9 +219,6 @@ impl Function {
             env,
         }
     }
-    pub fn parameters(&self) -> &Vec<IdentifierNode> {
-        &self.parameters
-    }
     pub fn body(&self) -> &BlockStatementNode {
         &self.body
     }
@@ -217,6 +229,40 @@ impl Function {
 impl Display for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "function")
+    }
+}
+
+/*-------------------------------------*/
+
+#[derive(Clone)]
+pub struct BuiltinFunction {
+    parameters: Vec<IdentifierNode>,
+    f: Rc<dyn Fn(&Environment) -> EvalResult>,
+}
+impl Object for BuiltinFunction {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+impl FunctionBase for BuiltinFunction {
+    fn num_parameter(&self) -> usize {
+        self.parameters.len()
+    }
+    fn parameters(&self) -> &Vec<IdentifierNode> {
+        &self.parameters
+    }
+}
+impl BuiltinFunction {
+    pub fn new(parameters: Vec<IdentifierNode>, f: Rc<dyn Fn(&Environment) -> EvalResult>) -> Self {
+        Self { parameters, f }
+    }
+    pub fn call(&self, env: &Environment) -> EvalResult {
+        (self.f)(env)
+    }
+}
+impl Display for BuiltinFunction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "built-in function")
     }
 }
 

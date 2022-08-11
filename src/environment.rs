@@ -55,6 +55,7 @@ impl Environment {
         }
     }
 
+    #[allow(dead_code)]
     fn to_debug_string(&self) -> String {
         format!(
             "Environment {{\n    m: {:?},\n    outer: {}\n}}",

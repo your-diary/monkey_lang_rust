@@ -1,7 +1,7 @@
 use rustyline;
 
 use super::environment::Environment;
-use super::evaluator;
+use super::evaluator::Evaluator;
 use super::lexer::{Lexer, LexerResult};
 use super::parser::Parser;
 use super::token::Token;
@@ -33,6 +33,7 @@ pub fn start() -> rustyline::Result<()> {
         println!("Falied to load the history file `{}`: {}", HISTORY_FILE, e);
     }
 
+    let evaluator = Evaluator::new();
     let mut env = Environment::new(None);
 
     loop {
@@ -58,7 +59,7 @@ pub fn start() -> rustyline::Result<()> {
                     Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),
                     Ok(e) => {
                         // println!("{:#?}", e);
-                        match evaluator::eval(&e, &mut env) {
+                        match evaluator.eval(&e, &mut env) {
                             Ok(e) => println!("\u{001B}[095m{}\u{001B}[0m", e),
                             Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),
                         }

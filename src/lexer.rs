@@ -138,17 +138,16 @@ impl Lexer {
                 ]);
                 let ret = match c {
                     '=' | '!' | '*' | '>' | '<' => {
-                        let next_ch = self.peek_next_char();
-                        if (next_ch.is_none()) {
-                            c.to_string()
-                        } else {
+                        if let Some(next_ch) = self.peek_next_char() {
                             let s = m.get(&self.ch.unwrap()).unwrap();
-                            if (next_ch.unwrap() == s.chars().nth(1).unwrap()) {
+                            if (next_ch == s.chars().nth(1).unwrap()) {
                                 self.read_next_char();
                                 s.to_string()
                             } else {
                                 c.to_string()
                             }
+                        } else {
+                            c.to_string()
                         }
                     }
                     '&' | '|' => {

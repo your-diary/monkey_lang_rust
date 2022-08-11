@@ -156,7 +156,7 @@ impl Parser {
     fn parse_let_statement(&mut self) -> ParseResult<LetStatementNode> {
         if (!self.expect_and_peek(Token::Ident(String::new()))) {
             return Err(ParseError::Error(
-                "identifier missing after `let`".to_string(),
+                "identifier missing or reserved keyword used after `let`".to_string(),
             ));
         }
         let identifier = IdentifierNode::new(self.get(self.index)?.clone());
