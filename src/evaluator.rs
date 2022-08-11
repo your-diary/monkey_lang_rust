@@ -708,8 +708,25 @@ mod tests {
 
     #[test]
     fn test08() {
+        assert_float(r#" pi "#, 3.141592653589793);
+
         assert_integer(r#" len("hello") "#, 5);
         assert_integer(r#" len("あいう") "#, 3);
-        assert_float(r#" pi "#, 3.141592653589793);
+
+        assert_boolean(r#" bool("") "#, false);
+        assert_boolean(r#" bool("hello") "#, true);
+        assert_boolean(r#" bool(0) "#, false);
+        assert_boolean(r#" bool(1) "#, true);
+        assert_boolean(r#" bool(0.0) "#, false);
+        assert_boolean(r#" bool(1.1) "#, true);
+
+        assert_string(r#" str('あ') "#, "あ");
+
+        assert_integer(r#" int(3.1) "#, 3);
+        assert_integer(r#" int(3.8) "#, 3);
+        assert_integer(r#" int(-3.1) "#, -3);
+        assert_integer(r#" int(-3.8) "#, -3);
+
+        assert_float(r#" float(3) "#, 3.0);
     }
 }
