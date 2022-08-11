@@ -204,12 +204,15 @@ impl Parser {
             Token::Lparen => self.parse_grouped_expression(),
             Token::Ident(_) => self.parse_identifier().map(|e| Box::new(e) as _),
             Token::Int(_) => self.parse_integer_literal().map(|e| Box::new(e) as _),
+            Token::Float(_) => self.parse_float_literal().map(|e| Box::new(e) as _),
+            Token::True => self.parse_boolean_literal().map(|e| Box::new(e) as _),
+            Token::False => self.parse_boolean_literal().map(|e| Box::new(e) as _),
+            Token::Char(_) => self.parse_character_literal().map(|e| Box::new(e) as _),
+            Token::String(_) => self.parse_string_literal().map(|e| Box::new(e) as _),
             Token::Invert => self.parse_unary_expression().map(|e| Box::new(e) as _),
             Token::Minus => self.parse_unary_expression().map(|e| Box::new(e) as _),
             Token::If => self.parse_if_expression().map(|e| Box::new(e) as _),
             Token::Function => self.parse_function_literal().map(|e| Box::new(e) as _),
-            Token::True => self.parse_boolean_literal().map(|e| Box::new(e) as _),
-            Token::False => self.parse_boolean_literal().map(|e| Box::new(e) as _),
             t => Err(ParseError::Error(format!(
                 "unexpected start of expression: {:?}",
                 t
@@ -263,8 +266,20 @@ impl Parser {
         Ok(IntegerLiteralNode::new(self.get(self.index)?.clone()))
     }
 
+    fn parse_float_literal(&self) -> ParseResult<FloatLiteralNode> {
+        Ok(FloatLiteralNode::new(self.get(self.index)?.clone()))
+    }
+
     fn parse_boolean_literal(&self) -> ParseResult<BooleanLiteralNode> {
         Ok(BooleanLiteralNode::new(self.get(self.index)?.clone()))
+    }
+
+    fn parse_character_literal(&self) -> ParseResult<CharacterLiteralNode> {
+        Ok(CharacterLiteralNode::new(self.get(self.index)?.clone()))
+    }
+
+    fn parse_string_literal(&self) -> ParseResult<StringLiteralNode> {
+        Ok(StringLiteralNode::new(self.get(self.index)?.clone()))
     }
 
     //<operator> <expression>
@@ -415,11 +430,32 @@ mod tests {
         assert_eq!(n.get_value(), i);
     }
 
+    fn assert_float_literal(n: &dyn ExpressionNode, v: f64) {
+        let n = n.as_any().downcast_ref::<FloatLiteralNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_eq!(n.get_value(), v);
+    }
+
     fn assert_boolean_literal(n: &dyn ExpressionNode, b: bool) {
         let n = n.as_any().downcast_ref::<BooleanLiteralNode>();
         assert!(n.is_some());
         let n = n.unwrap();
         assert_eq!(n.get_value(), b);
+    }
+
+    fn assert_character_literal(n: &dyn ExpressionNode, c: char) {
+        let n = n.as_any().downcast_ref::<CharacterLiteralNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_eq!(n.get_value(), c);
+    }
+
+    fn assert_string_literal(n: &dyn ExpressionNode, s: &str) {
+        let n = n.as_any().downcast_ref::<StringLiteralNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_eq!(n.get_value(), s);
     }
 
     fn assert_identifier(n: &dyn ExpressionNode, s: &str) {
@@ -565,6 +601,7 @@ mod tests {
     fn test04() {
         let input = r#"
                 5;
+                3.14;
             "#;
 
         let mut parser = Parser::new(get_tokens(input));
@@ -574,7 +611,7 @@ mod tests {
         let root = root.unwrap();
         println!("{:#?}", root);
 
-        assert_eq!(1, root.statements().len());
+        assert_eq!(2, root.statements().len());
 
         let s = root.statements()[0]
             .as_any()
@@ -582,6 +619,13 @@ mod tests {
         assert!(s.is_some());
         let s = s.unwrap();
         assert_integer_literal(s.expression(), 5);
+
+        let s = root.statements()[1]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_float_literal(s.expression(), 3.14);
     }
 
     #[test]
@@ -615,6 +659,37 @@ mod tests {
     #[test]
     fn test06() {
         let input = r#"
+                'あ';
+                "こんにちは";
+            "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(2, root.statements().len());
+
+        let s = root.statements()[0]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_character_literal(s.expression(), 'あ');
+
+        let s = root.statements()[1]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_string_literal(s.expression(), "こんにちは");
+    }
+
+    #[test]
+    fn test07() {
+        let input = r#"
                     !5;
                     -15;
                 "#;
@@ -642,7 +717,7 @@ mod tests {
     }
 
     #[test]
-    fn test07() {
+    fn test08() {
         let input = r#"
                     1 + 2;
                     1 - 2;
@@ -685,7 +760,7 @@ mod tests {
     }
 
     #[test]
-    fn test08() {
+    fn test09() {
         let input = r#"
                     1 + 2 * 3;
                 "#;
@@ -716,7 +791,7 @@ mod tests {
     }
 
     #[test]
-    fn test09() {
+    fn test10() {
         let input = r#"
                     (1 + 2) * 3;
                 "#;
@@ -747,7 +822,7 @@ mod tests {
     }
 
     #[test]
-    fn test10() {
+    fn test11() {
         let input = r#"
                     if (x < y) { x }; 5;
                 "#;
@@ -792,7 +867,7 @@ mod tests {
     }
 
     #[test]
-    fn test11() {
+    fn test12() {
         let input = r#"
                         if (x != y) {
                             x
@@ -851,7 +926,7 @@ mod tests {
     }
 
     #[test]
-    fn test12() {
+    fn test13() {
         let input = r#"
                     fn () {
                         return;
@@ -918,7 +993,7 @@ mod tests {
     }
 
     #[test]
-    fn test13() {
+    fn test14() {
         let input = r#"
             f()
             f(a)

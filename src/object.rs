@@ -37,15 +37,15 @@ impl Default for Null {
 
 /*-------------------------------------*/
 
-pub struct Integer {
+pub struct Int {
     value: i32,
 }
-impl Object for Integer {
+impl Object for Int {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
-impl Integer {
+impl Int {
     pub fn new(value: i32) -> Self {
         Self { value }
     }
@@ -53,7 +53,7 @@ impl Integer {
         self.value
     }
 }
-impl Display for Integer {
+impl Display for Int {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
     }
@@ -61,15 +61,39 @@ impl Display for Integer {
 
 /*-------------------------------------*/
 
-pub struct Boolean {
-    value: bool,
+pub struct Float {
+    value: f64,
 }
-impl Object for Boolean {
+impl Object for Float {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
-impl Boolean {
+impl Float {
+    pub fn new(value: f64) -> Self {
+        Self { value }
+    }
+    pub fn value(&self) -> f64 {
+        self.value
+    }
+}
+impl Display for Float {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+/*-------------------------------------*/
+
+pub struct Bool {
+    value: bool,
+}
+impl Object for Bool {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+impl Bool {
     pub fn new(value: bool) -> Self {
         Self { value }
     }
@@ -77,7 +101,55 @@ impl Boolean {
         self.value
     }
 }
-impl Display for Boolean {
+impl Display for Bool {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+/*-------------------------------------*/
+
+pub struct Char {
+    value: char,
+}
+impl Object for Char {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+impl Char {
+    pub fn new(value: char) -> Self {
+        Self { value }
+    }
+    pub fn value(&self) -> char {
+        self.value
+    }
+}
+impl Display for Char {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+/*-------------------------------------*/
+
+pub struct Str {
+    value: String,
+}
+impl Object for Str {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+impl Str {
+    pub fn new(value: String) -> Self {
+        Self { value }
+    }
+    pub fn value(&self) -> &str {
+        &self.value
+    }
+}
+impl Display for Str {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
     }

@@ -292,6 +292,33 @@ impl IntegerLiteralNode {
 /*-------------------------------------*/
 
 #[derive(Debug)]
+pub struct FloatLiteralNode {
+    token: Token,
+}
+
+impl Node for FloatLiteralNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ExpressionNode for FloatLiteralNode {}
+
+impl FloatLiteralNode {
+    pub fn new(token: Token) -> Self {
+        FloatLiteralNode { token }
+    }
+    pub fn get_value(&self) -> f64 {
+        match self.token {
+            Token::Float(i) => i,
+            _ => unreachable!(),
+        }
+    }
+}
+
+/*-------------------------------------*/
+
+#[derive(Debug)]
 pub struct BooleanLiteralNode {
     token: Token,
 }
@@ -312,6 +339,60 @@ impl BooleanLiteralNode {
         match self.token {
             Token::True => true,
             Token::False => false,
+            _ => unreachable!(),
+        }
+    }
+}
+
+/*-------------------------------------*/
+
+#[derive(Debug)]
+pub struct CharacterLiteralNode {
+    token: Token,
+}
+
+impl Node for CharacterLiteralNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ExpressionNode for CharacterLiteralNode {}
+
+impl CharacterLiteralNode {
+    pub fn new(token: Token) -> Self {
+        CharacterLiteralNode { token }
+    }
+    pub fn get_value(&self) -> char {
+        match self.token {
+            Token::Char(c) => c,
+            _ => unreachable!(),
+        }
+    }
+}
+
+/*-------------------------------------*/
+
+#[derive(Debug)]
+pub struct StringLiteralNode {
+    token: Token,
+}
+
+impl Node for StringLiteralNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ExpressionNode for StringLiteralNode {}
+
+impl StringLiteralNode {
+    pub fn new(token: Token) -> Self {
+        StringLiteralNode { token }
+    }
+    pub fn get_value(&self) -> &str {
+        match self.token {
+            Token::String(ref s) => s,
             _ => unreachable!(),
         }
     }

@@ -48,8 +48,20 @@ pub fn eval(node: &dyn Node, env: &mut Environment) -> EvalResult {
         return eval_integer_literal_node(n, env);
     }
 
+    if let Some(n) = node.as_any().downcast_ref::<FloatLiteralNode>() {
+        return eval_float_literal_node(n, env);
+    }
+
     if let Some(n) = node.as_any().downcast_ref::<BooleanLiteralNode>() {
         return eval_boolean_literal_node(n, env);
+    }
+
+    if let Some(n) = node.as_any().downcast_ref::<CharacterLiteralNode>() {
+        return eval_character_literal_node(n, env);
+    }
+
+    if let Some(n) = node.as_any().downcast_ref::<StringLiteralNode>() {
+        return eval_string_literal_node(n, env);
     }
 
     if let Some(n) = node.as_any().downcast_ref::<FunctionLiteralNode>() {
@@ -126,20 +138,29 @@ fn eval_unary_expression_node(n: &UnaryExpressionNode, env: &mut Environment) ->
     match n.operator() {
         Token::Minus => {
             let o = eval(n.expression().as_node(), env)?;
-            if let Some(o) = o.as_any().downcast_ref::<Integer>() {
-                return Ok(Rc::new(Integer::new(-o.value())));
+            if let Some(o) = o.as_any().downcast_ref::<Int>() {
+                return Ok(Rc::new(Int::new(-o.value())));
+            }
+            if let Some(o) = o.as_any().downcast_ref::<Float>() {
+                return Ok(Rc::new(Float::new(-o.value())));
             }
             Err("operand of unary `-` is not a number".to_string())
         }
         Token::Invert => {
             let o = eval(n.expression().as_node(), env)?;
-            if let Some(o) = o.as_any().downcast_ref::<Boolean>() {
-                return Ok(Rc::new(Boolean::new(!o.value())));
+            if let Some(o) = o.as_any().downcast_ref::<Bool>() {
+                return Ok(Rc::new(Bool::new(!o.value())));
             }
-            if let Some(o) = o.as_any().downcast_ref::<Integer>() {
-                return Ok(Rc::new(Boolean::new(o.value() == 0)));
+            if let Some(o) = o.as_any().downcast_ref::<Int>() {
+                return Ok(Rc::new(Bool::new(o.value() == 0)));
             }
-            Err("operand of unary `!` is not a number nor a boolean".to_string())
+            if let Some(o) = o.as_any().downcast_ref::<Float>() {
+                return Ok(Rc::new(Bool::new(o.value() == 0.0)));
+            }
+            if let Some(o) = o.as_any().downcast_ref::<Str>() {
+                return Ok(Rc::new(Bool::new(o.value().is_empty())));
+            }
+            Err("operand of unary `!` is not a number, a boolean nor a string".to_string())
         }
         t => Err(format!("unknown unary operator: `{:?}`", t)),
     }
@@ -151,81 +172,169 @@ fn eval_binary_expression_node(n: &BinaryExpressionNode, env: &mut Environment) 
 
     match n.operator() {
         Token::Plus => {
-            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                    return Ok(Rc::new(Integer::new(left.value() + right.value())));
+            if let Some(left) = left.as_any().downcast_ref::<Int>() {
+                if let Some(right) = right.as_any().downcast_ref::<Int>() {
+                    return Ok(Rc::new(Int::new(left.value() + right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Float>() {
+                if let Some(right) = right.as_any().downcast_ref::<Float>() {
+                    return Ok(Rc::new(Float::new(left.value() + right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Str>() {
+                if let Some(right) = right.as_any().downcast_ref::<Str>() {
+                    return Ok(Rc::new(Str::new(left.value().to_string() + right.value())));
                 }
             }
             Err("operand of binary `+` is not a number nor a string".to_string())
         }
         Token::Minus => {
-            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                    return Ok(Rc::new(Integer::new(left.value() - right.value())));
+            if let Some(left) = left.as_any().downcast_ref::<Int>() {
+                if let Some(right) = right.as_any().downcast_ref::<Int>() {
+                    return Ok(Rc::new(Int::new(left.value() - right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Float>() {
+                if let Some(right) = right.as_any().downcast_ref::<Float>() {
+                    return Ok(Rc::new(Float::new(left.value() - right.value())));
                 }
             }
             Err("operand of binary `-` is not a number".to_string())
         }
         Token::Asterisk => {
-            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                    return Ok(Rc::new(Integer::new(left.value() * right.value())));
+            if let Some(left) = left.as_any().downcast_ref::<Int>() {
+                if let Some(right) = right.as_any().downcast_ref::<Int>() {
+                    return Ok(Rc::new(Int::new(left.value() * right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Float>() {
+                if let Some(right) = right.as_any().downcast_ref::<Float>() {
+                    return Ok(Rc::new(Float::new(left.value() * right.value())));
                 }
             }
             Err("operand of binary `*` is not a number".to_string())
         }
         Token::Slash => {
-            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
+            if let Some(left) = left.as_any().downcast_ref::<Int>() {
+                if let Some(right) = right.as_any().downcast_ref::<Int>() {
                     if (right.value() == 0) {
                         return Err("zero division".to_string());
                     }
-                    return Ok(Rc::new(Integer::new(left.value() / right.value())));
+                    return Ok(Rc::new(Int::new(left.value() / right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Float>() {
+                if let Some(right) = right.as_any().downcast_ref::<Float>() {
+                    if (right.value() == 0.0) {
+                        return Err("zero division".to_string());
+                    }
+                    return Ok(Rc::new(Float::new(left.value() / right.value())));
                 }
             }
             Err("operand of binary `/` is not a number".to_string())
         }
         Token::Eq => {
-            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                    return Ok(Rc::new(Boolean::new(left.value() == right.value())));
+            if let Some(left) = left.as_any().downcast_ref::<Int>() {
+                if let Some(right) = right.as_any().downcast_ref::<Int>() {
+                    return Ok(Rc::new(Bool::new(left.value() == right.value())));
                 }
             }
-            if let Some(left) = left.as_any().downcast_ref::<Boolean>() {
-                if let Some(right) = right.as_any().downcast_ref::<Boolean>() {
-                    return Ok(Rc::new(Boolean::new(left.value() == right.value())));
+            if let Some(left) = left.as_any().downcast_ref::<Float>() {
+                if let Some(right) = right.as_any().downcast_ref::<Float>() {
+                    return Ok(Rc::new(Bool::new(left.value() == right.value())));
                 }
             }
-            Err("operand of binary `==` is not a number, a boolean nor a string".to_string())
+            if let Some(left) = left.as_any().downcast_ref::<Bool>() {
+                if let Some(right) = right.as_any().downcast_ref::<Bool>() {
+                    return Ok(Rc::new(Bool::new(left.value() == right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Char>() {
+                if let Some(right) = right.as_any().downcast_ref::<Char>() {
+                    return Ok(Rc::new(Bool::new(left.value() == right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Str>() {
+                if let Some(right) = right.as_any().downcast_ref::<Str>() {
+                    return Ok(Rc::new(Bool::new(left.value() == right.value())));
+                }
+            }
+            Err("unsupported operand type for binary `==`".to_string())
         }
         Token::NotEq => {
-            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                    return Ok(Rc::new(Boolean::new(left.value() != right.value())));
+            if let Some(left) = left.as_any().downcast_ref::<Int>() {
+                if let Some(right) = right.as_any().downcast_ref::<Int>() {
+                    return Ok(Rc::new(Bool::new(left.value() != right.value())));
                 }
             }
-            if let Some(left) = left.as_any().downcast_ref::<Boolean>() {
-                if let Some(right) = right.as_any().downcast_ref::<Boolean>() {
-                    return Ok(Rc::new(Boolean::new(left.value() != right.value())));
+            if let Some(left) = left.as_any().downcast_ref::<Float>() {
+                if let Some(right) = right.as_any().downcast_ref::<Float>() {
+                    return Ok(Rc::new(Bool::new(left.value() != right.value())));
                 }
             }
-            Err("operand of binary `!=` is not a number, a boolean nor a string".to_string())
+            if let Some(left) = left.as_any().downcast_ref::<Bool>() {
+                if let Some(right) = right.as_any().downcast_ref::<Bool>() {
+                    return Ok(Rc::new(Bool::new(left.value() != right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Char>() {
+                if let Some(right) = right.as_any().downcast_ref::<Char>() {
+                    return Ok(Rc::new(Bool::new(left.value() != right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Str>() {
+                if let Some(right) = right.as_any().downcast_ref::<Str>() {
+                    return Ok(Rc::new(Bool::new(left.value() != right.value())));
+                }
+            }
+            Err("unsupported operand type for binary `!=`".to_string())
         }
         Token::Lt => {
-            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                    return Ok(Rc::new(Boolean::new(left.value() < right.value())));
+            if let Some(left) = left.as_any().downcast_ref::<Int>() {
+                if let Some(right) = right.as_any().downcast_ref::<Int>() {
+                    return Ok(Rc::new(Bool::new(left.value() < right.value())));
                 }
             }
-            Err("operand of binary `<` is not a number, a boolean nor a string".to_string())
+            if let Some(left) = left.as_any().downcast_ref::<Float>() {
+                if let Some(right) = right.as_any().downcast_ref::<Float>() {
+                    return Ok(Rc::new(Bool::new(left.value() < right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Char>() {
+                if let Some(right) = right.as_any().downcast_ref::<Char>() {
+                    return Ok(Rc::new(Bool::new(left.value() < right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Str>() {
+                if let Some(right) = right.as_any().downcast_ref::<Str>() {
+                    return Ok(Rc::new(Bool::new(left.value() < right.value())));
+                }
+            }
+            Err("unsupported operand type for binary `<`".to_string())
         }
         Token::Gt => {
-            if let Some(left) = left.as_any().downcast_ref::<Integer>() {
-                if let Some(right) = right.as_any().downcast_ref::<Integer>() {
-                    return Ok(Rc::new(Boolean::new(left.value() > right.value())));
+            if let Some(left) = left.as_any().downcast_ref::<Int>() {
+                if let Some(right) = right.as_any().downcast_ref::<Int>() {
+                    return Ok(Rc::new(Bool::new(left.value() > right.value())));
                 }
             }
-            Err("operand of binary `<` is not a number, a boolean nor a string".to_string())
+            if let Some(left) = left.as_any().downcast_ref::<Float>() {
+                if let Some(right) = right.as_any().downcast_ref::<Float>() {
+                    return Ok(Rc::new(Bool::new(left.value() > right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Char>() {
+                if let Some(right) = right.as_any().downcast_ref::<Char>() {
+                    return Ok(Rc::new(Bool::new(left.value() > right.value())));
+                }
+            }
+            if let Some(left) = left.as_any().downcast_ref::<Str>() {
+                if let Some(right) = right.as_any().downcast_ref::<Str>() {
+                    return Ok(Rc::new(Bool::new(left.value() > right.value())));
+                }
+            }
+            Err("unsupported operand type for binary `>`".to_string())
         }
         t => Err(format!("unknown binary operator: `{:?}`", t)),
     }
@@ -303,7 +412,7 @@ fn eval_call_expression_node(n: &CallExpressionNode, env: &mut Environment) -> E
 
 fn eval_if_expression_node(n: &IfExpressionNode, env: &mut Environment) -> EvalResult {
     let condition = eval(n.condition().as_node(), env)?;
-    match condition.as_any().downcast_ref::<Boolean>() {
+    match condition.as_any().downcast_ref::<Bool>() {
         None => Err("if condition is not a boolean".to_string()),
         Some(condition) => {
             if (condition.value()) {
@@ -318,11 +427,23 @@ fn eval_if_expression_node(n: &IfExpressionNode, env: &mut Environment) -> EvalR
 }
 
 fn eval_integer_literal_node(n: &IntegerLiteralNode, _env: &Environment) -> EvalResult {
-    Ok(Rc::new(Integer::new(n.get_value())))
+    Ok(Rc::new(Int::new(n.get_value())))
+}
+
+fn eval_float_literal_node(n: &FloatLiteralNode, _env: &Environment) -> EvalResult {
+    Ok(Rc::new(Float::new(n.get_value())))
 }
 
 fn eval_boolean_literal_node(n: &BooleanLiteralNode, _env: &Environment) -> EvalResult {
-    Ok(Rc::new(Boolean::new(n.get_value())))
+    Ok(Rc::new(Bool::new(n.get_value())))
+}
+
+fn eval_character_literal_node(n: &CharacterLiteralNode, _env: &Environment) -> EvalResult {
+    Ok(Rc::new(Char::new(n.get_value())))
+}
+
+fn eval_string_literal_node(n: &StringLiteralNode, _env: &Environment) -> EvalResult {
+    Ok(Rc::new(Str::new(n.get_value().to_string())))
 }
 
 fn eval_function_literal_node(n: &FunctionLiteralNode, env: &mut Environment) -> EvalResult {
@@ -395,14 +516,35 @@ mod tests {
 
     fn assert_integer(s: &str, v: i32) {
         let o = read_and_eval(s);
-        let o = o.as_any().downcast_ref::<Integer>();
+        let o = o.as_any().downcast_ref::<Int>();
         assert!(o.is_some());
         assert_eq!(v, o.unwrap().value());
     }
 
+    fn assert_float(s: &str, v: f64) {
+        let o = read_and_eval(s);
+        let o = o.as_any().downcast_ref::<Float>();
+        assert!(o.is_some());
+        assert!((v - o.unwrap().value()).abs() < 1e-6);
+    }
+
     fn assert_boolean(s: &str, v: bool) {
         let o = read_and_eval(s);
-        let o = o.as_any().downcast_ref::<Boolean>();
+        let o = o.as_any().downcast_ref::<Bool>();
+        assert!(o.is_some());
+        assert_eq!(v, o.unwrap().value());
+    }
+
+    fn assert_character(s: &str, v: char) {
+        let o = read_and_eval(s);
+        let o = o.as_any().downcast_ref::<Char>();
+        assert!(o.is_some());
+        assert_eq!(v, o.unwrap().value());
+    }
+
+    fn assert_string(s: &str, v: &str) {
+        let o = read_and_eval(s);
+        let o = o.as_any().downcast_ref::<Str>();
         assert!(o.is_some());
         assert_eq!(v, o.unwrap().value());
     }
@@ -429,10 +571,15 @@ mod tests {
         assert_boolean(r#" !!0 "#, false);
         assert_boolean(r#" !1 "#, false);
         assert_boolean(r#" !!1 "#, true);
+        assert_boolean(r#" !0.0 "#, true);
+        assert_boolean(r#" !3.14 "#, false);
+        assert_boolean(r#" !"" "#, true);
+        assert_boolean(r#" !"あ" "#, false);
 
         //unary minus
         assert_integer(r#" -5 "#, -5);
         assert_integer(r#" --5 "#, 5);
+        assert_float(r#" -3.14 "#, -3.14);
 
         //binary + - * /
         assert_integer(r#" 2 + 3 "#, 5);
@@ -442,6 +589,11 @@ mod tests {
         assert_integer(r#" 4 / 3 "#, 1);
         assert_integer(r#" 2 + 3 * 4"#, 14);
         assert_integer(r#" (2 + 3) * 4"#, 20);
+        assert_float(r#" 3.14 + 1.0 "#, 4.14);
+        assert_float(r#" 3.14 - 1.0 "#, 2.14);
+        assert_float(r#" 3.14 * 2.0 "#, 6.28);
+        assert_float(r#" 3.14 / 2.0 "#, 1.57);
+        assert_string(r#" "hello" + "world" "#, "helloworld");
 
         //binary == != < >
         assert_boolean(r#" true == false "#, false);
@@ -459,6 +611,36 @@ mod tests {
         assert_boolean(r#" 1 < 0 "#, false);
         assert_boolean(r#" 0 < 0 "#, false);
         assert_boolean(r#" -1 < 0 "#, true);
+        assert_boolean(r#" 3.14 == 3.14 "#, true);
+        assert_boolean(r#" 3.14 == 3.15 "#, false);
+        assert_boolean(r#" 3.14 != 3.14 "#, false);
+        assert_boolean(r#" 3.14 != 3.15 "#, true);
+        assert_boolean(r#" 'a' == 'a' "#, true);
+        assert_boolean(r#" 'a' != 'a' "#, false);
+        assert_boolean(r#" 'a' == 'b' "#, false);
+        assert_boolean(r#" 'a' != 'b' "#, true);
+        assert_boolean(r#" "hello" == "hello" "#, true);
+        assert_boolean(r#" "hello" != "hello" "#, false);
+        assert_boolean(r#" "hello" == "world" "#, false);
+        assert_boolean(r#" "hello" != "world" "#, true);
+        assert_boolean(r#" 3.2 < 3.1 "#, false);
+        assert_boolean(r#" 3.2 < 3.2 "#, false);
+        assert_boolean(r#" 3.2 < 3.3 "#, true);
+        assert_boolean(r#" 3.1 > 3.2 "#, false);
+        assert_boolean(r#" 3.2 > 3.2 "#, false);
+        assert_boolean(r#" 3.3 > 3.2 "#, true);
+        assert_boolean(r#" 'b' < 'a' "#, false);
+        assert_boolean(r#" 'b' < 'b' "#, false);
+        assert_boolean(r#" 'b' < 'c' "#, true);
+        assert_boolean(r#" 'a' > 'b' "#, false);
+        assert_boolean(r#" 'b' > 'b' "#, false);
+        assert_boolean(r#" 'c' > 'b' "#, true);
+        assert_boolean(r#" "xb" < "xa" "#, false);
+        assert_boolean(r#" "xb" < "xb" "#, false);
+        assert_boolean(r#" "xb" < "xc" "#, true);
+        assert_boolean(r#" "xa" > "xb" "#, false);
+        assert_boolean(r#" "xb" > "xb" "#, false);
+        assert_boolean(r#" "xc" > "xb" "#, true);
     }
 
     #[test]

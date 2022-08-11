@@ -19,3 +19,51 @@ REPL(read eval print loop)は、対話モードのことである(入力を読�
 
 
 
+
+入力
+↓
+レクサー(lexer.rs)でトークン(token.rs)に分ける
+↓
+そのトークンをパーサー(parser.rs)でパースしてAST(ast.rs)を構築する
+↓
+ASTを評価(evaluator.rs)する。その際、オブジェクトはobject.rs、スコープはenvironment.rsとなる
+
+
+
+
+# TODO
+
+## operators
+
+^ //unary
+% //binary
+>= //binary
+<= //binary
+&& //binary
+|| //binary
+
+## assignment
+
+var //`let`の対義語
+
+= //assignment
+
++=
+-=
+*=
+/=
+%=
+^=
+
+## loop
+
+loop
+continue
+break
+
+## functions
+
+built-in functions
+cast
+
+<!-- vim: set syntax=md: -->
