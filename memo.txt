@@ -26,7 +26,7 @@ REPL(read eval print loop)は、対話モードのことである(入力を読�
 ↓
 そのトークンをパーサー(parser.rs)でパースしてAST(ast.rs)を構築する
 ↓
-ASTを評価(evaluator.rs)する。その際、オブジェクトはobject.rs、スコープはenvironment.rsとなる
+ASTを評価(evaluator.rs)する。その際、オブジェクトはobject.rs、演算子はoperator.rs、スコープはenvironment.rsとなる
 
 
 
@@ -34,13 +34,6 @@ ASTを評価(evaluator.rs)する。その際、オブジェクトはobject.rs、
 # TODO
 
 ## operators
-
-^ //unary
-% //binary
->= //binary
-<= //binary
-&& //binary
-|| //binary
 
 ## assignment
 

@@ -9,40 +9,33 @@ use super::token::Token;
 #[derive(Debug, PartialEq, PartialOrd)]
 enum Precedence {
     Lowest = 0,
-    Equals,      //`==`
-    LessGreater, //`<`, `>`
-    Sum,         //`+`
-    Product,     //`*`
-    Unary,       //`-`, `!`
-    Call,        //`(` in `f()`
+    Or,      //`||`
+    And,     //`&&`
+    Cmp,     //`==`, `<`, `>`
+    Sum,     //`+`
+    Product, //`*`
+    Unary,   //`-`, `!`
+    Call,    //`(` in `f()`
 }
 
 fn lookup_precedence(token: &Token) -> Precedence {
-    //TODO remove comments
     match token {
-        // Token::Assign => Precedence::Sum,
         Token::Plus => Precedence::Sum,
         Token::Minus => Precedence::Sum,
         Token::Asterisk => Precedence::Product,
         Token::Slash => Precedence::Product,
-        // Token::Invert => Precedence::Sum,
-        Token::Eq => Precedence::Equals,
-        Token::NotEq => Precedence::Equals,
-        Token::Lt => Precedence::LessGreater,
-        Token::Gt => Precedence::LessGreater,
-        // Token::Comma => Precedence::Sum,
-        // Token::Semicolon => Precedence::Sum,
+        Token::Percent => Precedence::Product,
+        Token::Power => Precedence::Product,
+        Token::Eq => Precedence::Cmp,
+        Token::NotEq => Precedence::Cmp,
+        Token::Lt => Precedence::Cmp,
+        Token::Gt => Precedence::Cmp,
+        Token::LtEq => Precedence::Cmp,
+        Token::GtEq => Precedence::Cmp,
+        Token::And => Precedence::And,
+        Token::Or => Precedence::Or,
         Token::Lparen => Precedence::Call,
         Token::Rparen => Precedence::Lowest,
-        // Token::Lbrace => Precedence::Sum,
-        // Token::Rbrace => Precedence::Sum,
-        // Token::Function => Precedence::Sum,
-        // Token::Let => Precedence::Sum,
-        // Token::Return => Precedence::Sum,
-        // Token::True => Precedence::Sum,
-        // Token::False => Precedence::Sum,
-        // Token::If => Precedence::Sum,
-        // Token::Else => Precedence::Sum,
         _ => Precedence::Lowest,
     }
 }
@@ -723,10 +716,16 @@ mod tests {
                     1 - 2;
                     1 * 2;
                     1 / 2;
+                    1 % 2;
+                    1 ** 2;
                     1 > 2;
                     1 < 2;
+                    1 >= 2;
+                    1 <= 2;
                     1 == 2;
                     1 != 2;
+                    1 && 2;
+                    1 || 2;
                 "#;
 
         let operators = vec![
@@ -734,10 +733,16 @@ mod tests {
             Token::Minus,
             Token::Asterisk,
             Token::Slash,
+            Token::Percent,
+            Token::Power,
             Token::Gt,
             Token::Lt,
+            Token::GtEq,
+            Token::LtEq,
             Token::Eq,
             Token::NotEq,
+            Token::And,
+            Token::Or,
         ];
 
         let mut parser = Parser::new(get_tokens(input));
@@ -747,7 +752,7 @@ mod tests {
         let root = root.unwrap();
         println!("{:#?}", root);
 
-        assert_eq!(8, root.statements().len());
+        assert_eq!(operators.len(), root.statements().len());
 
         for i in 0..root.statements().len() {
             let s = root.statements()[i]

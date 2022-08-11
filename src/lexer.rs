@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::token::{self, Token};
 use super::util;
 
@@ -125,24 +127,41 @@ impl Lexer {
             '\'' => self.read_character()?,
             //operators
             c => {
+                let m = HashMap::from([
+                    ('=', "=="),
+                    ('!', "!="),
+                    ('*', "**"),
+                    ('>', ">="),
+                    ('<', "<="),
+                    ('&', "&&"),
+                    ('|', "||"),
+                ]);
                 let ret = match c {
-                    '=' => {
+                    '=' | '!' | '*' | '>' | '<' => {
                         let next_ch = self.peek_next_char();
-                        if (next_ch.is_some() && (next_ch.unwrap() == '=')) {
-                            self.read_next_char();
-                            "==".to_string()
+                        if (next_ch.is_none()) {
+                            c.to_string()
                         } else {
-                            "=".to_string()
+                            let s = m.get(&self.ch.unwrap()).unwrap();
+                            if (next_ch.unwrap() == s.chars().nth(1).unwrap()) {
+                                self.read_next_char();
+                                s.to_string()
+                            } else {
+                                c.to_string()
+                            }
                         }
                     }
-                    '!' => {
+                    '&' | '|' => {
                         let next_ch = self.peek_next_char();
-                        if (next_ch.is_some() && (next_ch.unwrap() == '=')) {
-                            self.read_next_char();
-                            "!=".to_string()
-                        } else {
-                            "!".to_string()
+                        if (next_ch.is_none()) {
+                            return Err("unexpected end of input".to_string());
                         }
+                        let s = m.get(&self.ch.unwrap()).unwrap();
+                        if (next_ch.unwrap() != s.chars().nth(1).unwrap()) {
+                            return Err(format!("`{}` expected but not found", s));
+                        }
+                        self.read_next_char();
+                        s.to_string()
                     }
                     c => c.to_string(),
                 };
@@ -189,7 +208,15 @@ mod tests {
 
     #[test]
     fn test01() {
-        let input = "=+(){},;";
+        let input = r#"
+            = + ( ) { } , ;
+            * **
+            %
+            > >=
+            < <=
+            &&
+            ||
+        "#;
 
         let expected = vec![
             Token::Assign,
@@ -200,6 +227,15 @@ mod tests {
             Token::Rbrace,
             Token::Comma,
             Token::Semicolon,
+            Token::Asterisk,
+            Token::Power,
+            Token::Percent,
+            Token::Gt,
+            Token::GtEq,
+            Token::Lt,
+            Token::LtEq,
+            Token::And,
+            Token::Or,
             Token::Eof,
         ];
 
