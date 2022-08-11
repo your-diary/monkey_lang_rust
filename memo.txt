@@ -57,8 +57,6 @@ break
 ## functions
 
 built-in functions
-    exit(<int>)
-    print()
     append(<array>, <value>)
 
 <!-- vim: set syntax=md: -->

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::process;
 use std::rc::Rc;
 
 use super::ast::IdentifierNode;
@@ -29,6 +30,37 @@ impl Default for Builtin {
 //Never embed this function in `Builtin::new()`; it'll increase the indent level by one to decrease readability.
 fn initialize_builtin() -> Builtin {
     let mut m = HashMap::new();
+
+    /*-------------------------------------*/
+
+    let print = BuiltinFunction::new(
+        vec![IdentifierNode::new(Token::Ident("o".to_string()))],
+        Rc::new(|env: &Environment| -> EvalResult {
+            println!("{}", env.get("o").unwrap());
+            Ok(Rc::new(Null::new()))
+        }),
+    );
+
+    let eprint = BuiltinFunction::new(
+        vec![IdentifierNode::new(Token::Ident("o".to_string()))],
+        Rc::new(|env: &Environment| -> EvalResult {
+            eprintln!("{}", env.get("o").unwrap());
+            Ok(Rc::new(Null::new()))
+        }),
+    );
+
+    /*-------------------------------------*/
+
+    let exit = BuiltinFunction::new(
+        vec![IdentifierNode::new(Token::Ident("i".to_string()))],
+        Rc::new(|env: &Environment| -> EvalResult {
+            let i = env.get("i").unwrap();
+            if let Some(i) = i.as_any().downcast_ref::<Int>() {
+                process::exit(i.value());
+            }
+            Err("argument type mismatch".to_string())
+        }),
+    );
 
     /*-------------------------------------*/
 
@@ -102,6 +134,9 @@ fn initialize_builtin() -> Builtin {
 
     /*-------------------------------------*/
 
+    m.insert("print".to_string(), Rc::new(print) as _);
+    m.insert("eprint".to_string(), Rc::new(eprint) as _);
+    m.insert("exit".to_string(), Rc::new(exit) as _);
     m.insert("len".to_string(), Rc::new(len) as _);
     m.insert("bool".to_string(), Rc::new(bool_) as _);
     m.insert("str".to_string(), Rc::new(str_) as _);
