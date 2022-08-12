@@ -158,6 +158,39 @@ impl Display for Str {
 
 /*-------------------------------------*/
 
+#[derive(Clone)]
+pub struct Array {
+    elements: Vec<Rc<dyn Object>>,
+}
+impl Object for Array {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+impl Array {
+    pub fn new(elements: Vec<Rc<dyn Object>>) -> Self {
+        Self { elements }
+    }
+    pub fn elements(&self) -> &Vec<Rc<dyn Object>> {
+        &self.elements
+    }
+}
+impl Display for Array {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "[{}]",
+            self.elements
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
+}
+
+/*-------------------------------------*/
+
 pub struct ReturnValue {
     value: Rc<dyn Object>,
 }

@@ -194,6 +194,34 @@ impl BinaryExpressionNode {
 /*-------------------------------------*/
 
 #[derive(Debug)]
+pub struct IndexExpressionNode {
+    array: Box<dyn ExpressionNode>,
+    index: Box<dyn ExpressionNode>,
+}
+
+impl Node for IndexExpressionNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ExpressionNode for IndexExpressionNode {}
+
+impl IndexExpressionNode {
+    pub fn new(array: Box<dyn ExpressionNode>, index: Box<dyn ExpressionNode>) -> Self {
+        IndexExpressionNode { array, index }
+    }
+    pub fn array(&self) -> &dyn ExpressionNode {
+        self.array.as_ref()
+    }
+    pub fn index(&self) -> &dyn ExpressionNode {
+        self.index.as_ref()
+    }
+}
+
+/*-------------------------------------*/
+
+#[derive(Debug)]
 pub struct CallExpressionNode {
     function: Box<dyn ExpressionNode>,
     arguments: Vec<Box<dyn ExpressionNode>>,
@@ -395,6 +423,30 @@ impl StringLiteralNode {
             Token::String(ref s) => s,
             _ => unreachable!(),
         }
+    }
+}
+
+/*-------------------------------------*/
+
+#[derive(Debug)]
+pub struct ArrayLiteralNode {
+    elements: Vec<Box<dyn ExpressionNode>>,
+}
+
+impl Node for ArrayLiteralNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ExpressionNode for ArrayLiteralNode {}
+
+impl ArrayLiteralNode {
+    pub fn new(elements: Vec<Box<dyn ExpressionNode>>) -> Self {
+        ArrayLiteralNode { elements }
+    }
+    pub fn elements(&self) -> &Vec<Box<dyn ExpressionNode>> {
+        &self.elements
     }
 }
 

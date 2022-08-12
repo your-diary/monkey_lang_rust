@@ -58,7 +58,7 @@ pub fn start() -> rustyline::Result<()> {
                 match parser.parse() {
                     Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),
                     Ok(e) => {
-                        // println!("{:#?}", e);
+                        println!("{:#?}", e);
                         match evaluator.eval(&e, &mut env) {
                             Ok(e) => println!("\u{001B}[095m{}\u{001B}[0m", e),
                             Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),

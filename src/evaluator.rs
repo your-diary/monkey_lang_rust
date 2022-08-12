@@ -49,6 +49,10 @@ impl Evaluator {
             return self.eval_binary_expression_node(n, env);
         }
 
+        if let Some(n) = node.as_any().downcast_ref::<IndexExpressionNode>() {
+            return self.eval_index_expression_node(n, env);
+        }
+
         if let Some(n) = node.as_any().downcast_ref::<CallExpressionNode>() {
             return self.eval_call_expression_node(n, env);
         }
@@ -75,6 +79,10 @@ impl Evaluator {
 
         if let Some(n) = node.as_any().downcast_ref::<StringLiteralNode>() {
             return self.eval_string_literal_node(n, env);
+        }
+
+        if let Some(n) = node.as_any().downcast_ref::<ArrayLiteralNode>() {
+            return self.eval_array_literal_node(n, env);
         }
 
         if let Some(n) = node.as_any().downcast_ref::<FunctionLiteralNode>() {
@@ -201,6 +209,48 @@ impl Evaluator {
         }
     }
 
+    fn eval_index_expression_node(
+        &self,
+        n: &IndexExpressionNode,
+        env: &mut Environment,
+    ) -> EvalResult {
+        //Note an index array expression is of the form `<identifier>[<index>]` or `<array literal>[<index>]`.
+        //`loop { }` here is a loop hack (ref: |https://stackoverflow.com/a/66629605/8776746|)
+        #[allow(clippy::never_loop)]
+        let array: Array = loop {
+            if let Some(a) = n.array().as_any().downcast_ref::<ArrayLiteralNode>() {
+                let a = self.eval(a, env)?;
+                if let Some(a) = a.as_any().downcast_ref::<Array>() {
+                    break a.clone();
+                }
+                unreachable!();
+            };
+            if let Some(identifier) = n.array().as_any().downcast_ref::<IdentifierNode>() {
+                let a = self.eval_identifier_node(identifier, env)?;
+                if let Some(a) = a.as_any().downcast_ref::<Array>() {
+                    break a.clone();
+                }
+                return Err(format!("`{}` is not an array", identifier.get_name()));
+            }
+            return Err("only identifier or array literal can be indexed".to_string());
+        };
+
+        let index = self.eval(n.index().as_node(), env)?;
+        let index = index.as_any().downcast_ref::<Int>();
+        if (index.is_none()) {
+            return Err("non-integer array index found".to_string());
+        }
+        let index = index.unwrap();
+        if (index.value() < 0) {
+            return Err("negative array index not allowed".to_string());
+        }
+        if ((index.value() as usize) >= array.elements().len()) {
+            return Err("array index out of bounds".to_string());
+        }
+
+        Ok(array.elements()[index.value() as usize].clone())
+    }
+
     fn eval_call_expression_node(
         &self,
         n: &CallExpressionNode,
@@ -314,6 +364,14 @@ impl Evaluator {
         Ok(Rc::new(Str::new(n.get_value().to_string())))
     }
 
+    fn eval_array_literal_node(&self, n: &ArrayLiteralNode, env: &mut Environment) -> EvalResult {
+        let mut v = Vec::new();
+        for e in n.elements() {
+            v.push(self.eval(e.as_node(), env)?);
+        }
+        Ok(Rc::new(Array::new(v)))
+    }
+
     fn eval_function_literal_node(
         &self,
         n: &FunctionLiteralNode,
@@ -393,6 +451,7 @@ mod tests {
             assert!(r.is_err());
         }
         if let Err(e) = r {
+            println!("{}", e);
             assert!(e.contains(error_message));
         }
     }
@@ -418,7 +477,6 @@ mod tests {
         assert_eq!(v, o.unwrap().value());
     }
 
-    #[allow(dead_code)]
     fn assert_character(s: &str, v: char) {
         let o = read_and_eval(s);
         let o = o.as_any().downcast_ref::<Char>();
@@ -431,6 +489,19 @@ mod tests {
         let o = o.as_any().downcast_ref::<Str>();
         assert!(o.is_some());
         assert_eq!(v, o.unwrap().value());
+    }
+
+    fn assert_array(s: &str, v: &Vec<i32>) {
+        let o = read_and_eval(s);
+        let o = o.as_any().downcast_ref::<Array>();
+        assert!(o.is_some());
+        let o = o.unwrap();
+        assert_eq!(v.len(), o.elements().len());
+        for i in 0..v.len() {
+            let e = o.elements()[i].as_any().downcast_ref::<Int>();
+            assert!(e.is_some());
+            assert_eq!(e.unwrap().value(), v[i]);
+        }
     }
 
     fn assert_null(s: &str) {
@@ -728,5 +799,23 @@ mod tests {
         assert_integer(r#" int(-3.8) "#, -3);
 
         assert_float(r#" float(3) "#, 3.0);
+    }
+
+    #[test]
+    fn test09() {
+        assert_array(r#" [] "#, &vec![]);
+        assert_array(r#" [1] "#, &vec![1]);
+        assert_array(r#" [1, 2 * 3] "#, &vec![1, 6]);
+        assert_character(r#"let a = ['a', 'b', 'c']; a[0]"#, 'a');
+        assert_error(r#" b[0] "#, "not defined");
+        assert_error(r#" let b = 3; b[0] "#, "not an array");
+        assert_error(
+            r#" 3.14[0] "#,
+            "only identifier or array literal can be indexed",
+        );
+        assert_character(r#" ['a', 'b', 'c'][0] "#, 'a');
+        assert_error(r#" [][3.14] "#, "non-integer");
+        assert_error(r#" [][-1] "#, "negative");
+        assert_error(r#" [0, 1][100] "#, "out of bounds");
     }
 }

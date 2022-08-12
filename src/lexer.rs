@@ -208,7 +208,7 @@ mod tests {
     #[test]
     fn test01() {
         let input = r#"
-            = + ( ) { } , ;
+            = + ( ) { } [] , ;
             * **
             %
             > >=
@@ -224,6 +224,8 @@ mod tests {
             Token::Rparen,
             Token::Lbrace,
             Token::Rbrace,
+            Token::Lbracket,
+            Token::Rbracket,
             Token::Comma,
             Token::Semicolon,
             Token::Asterisk,

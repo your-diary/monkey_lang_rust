@@ -15,7 +15,7 @@ enum Precedence {
     Sum,     //`+`
     Product, //`*`
     Unary,   //`-`, `!`
-    Call,    //`(` in `f()`
+    Call,    //`(` in `f()`, `[` in `array[index]`
 }
 
 fn lookup_precedence(token: &Token) -> Precedence {
@@ -36,6 +36,8 @@ fn lookup_precedence(token: &Token) -> Precedence {
         Token::Or => Precedence::Or,
         Token::Lparen => Precedence::Call,
         Token::Rparen => Precedence::Lowest,
+        Token::Lbracket => Precedence::Call,
+        Token::Rbracket => Precedence::Lowest,
         _ => Precedence::Lowest,
     }
 }
@@ -202,6 +204,7 @@ impl Parser {
             Token::False => self.parse_boolean_literal().map(|e| Box::new(e) as _),
             Token::Char(_) => self.parse_character_literal().map(|e| Box::new(e) as _),
             Token::String(_) => self.parse_string_literal().map(|e| Box::new(e) as _),
+            Token::Lbracket => self.parse_array_literal().map(|e| Box::new(e) as _),
             Token::Invert => self.parse_unary_expression().map(|e| Box::new(e) as _),
             Token::Minus => self.parse_unary_expression().map(|e| Box::new(e) as _),
             Token::If => self.parse_if_expression().map(|e| Box::new(e) as _),
@@ -212,7 +215,7 @@ impl Parser {
             ))),
         }?;
 
-        //parses a binary expression or a call expression if the next token is a binary operator or a paren `(`
+        //parses a binary expression or a call/index expression if the next token is a binary operator or a `(` / `[`
         loop {
             let next_token = match self.get(self.index + 1) {
                 Err(ParseError::Eof) => break, //overlooks eof error as semicolon is optional after an expression
@@ -227,6 +230,8 @@ impl Parser {
             expr = match next_token {
                 //call expression
                 Token::Lparen => Box::new(self.parse_call_expression(expr)?) as _,
+                //array index expression
+                Token::Lbracket => Box::new(self.parse_index_expression(expr)?) as _,
                 //binary expression
                 _ => Box::new(self.parse_binary_expression(expr)?) as _,
             };
@@ -275,6 +280,22 @@ impl Parser {
         Ok(StringLiteralNode::new(self.get(self.index)?.clone()))
     }
 
+    //[<e1>, <e2>, ...]
+    fn parse_array_literal(&mut self) -> ParseResult<ArrayLiteralNode> {
+        let mut elements = Vec::new();
+        loop {
+            self.index += 1;
+            match self.get(self.index)? {
+                Token::Rbracket => break,
+                _ => {
+                    elements.push(self.parse_expression(Precedence::Lowest)?);
+                    self.expect_and_peek(Token::Comma); //consumes a comma if exists
+                }
+            }
+        }
+        Ok(ArrayLiteralNode::new(elements))
+    }
+
     //<operator> <expression>
     fn parse_unary_expression(&mut self) -> ParseResult<UnaryExpressionNode> {
         let operator = self.get(self.index)?.clone();
@@ -294,7 +315,31 @@ impl Parser {
             .map(|right| BinaryExpressionNode::new(operator, left, right))
     }
 
-    //<function name>(<argument(s)>)
+    //<array name or array literal>[<index>]
+    fn parse_index_expression(
+        &mut self,
+        array: Box<dyn ExpressionNode>,
+    ) -> ParseResult<IndexExpressionNode> {
+        self.index += 1;
+        if let Token::Rbracket = self.get(self.index)? {
+            return Err(ParseError::Error(
+                "empty index in array index expression".to_string(),
+            ));
+        }
+        let index = self.parse_expression(Precedence::Lowest)?;
+        self.index += 1;
+        match self.get(self.index)? {
+            Token::Rbracket => (),
+            _ => {
+                return Err(ParseError::Error(
+                    "`]` missing in array index expression".to_string(),
+                ))
+            }
+        }
+        Ok(IndexExpressionNode::new(array, index))
+    }
+
+    //<function name or function literal>(<argument(s)>)
     //
     //The last <argument> can optionally be followed by a comma (e.g. `(a, b,)`).
     //
@@ -449,6 +494,21 @@ mod tests {
         assert!(n.is_some());
         let n = n.unwrap();
         assert_eq!(n.get_value(), s);
+    }
+
+    fn assert_array_literal(n: &dyn ExpressionNode, v: &Vec<i32>) {
+        let n = n.as_any().downcast_ref::<ArrayLiteralNode>();
+        assert!(n.is_some());
+        let n = n.unwrap();
+        assert_eq!(v.len(), n.elements().len());
+        for i in 0..v.len() {
+            let e = n.elements()[i]
+                .as_any()
+                .downcast_ref::<IntegerLiteralNode>();
+            assert!(e.is_some());
+            let e = e.unwrap();
+            assert_eq!(v[i], e.get_value());
+        }
     }
 
     fn assert_identifier(n: &dyn ExpressionNode, s: &str) {
@@ -1035,5 +1095,75 @@ mod tests {
                 assert_binary_expression(v.arguments()[1].as_ref(), &Token::Plus, 3, 4);
             }
         }
+    }
+
+    #[test]
+    fn test15() {
+        let input = r#"
+            [];
+            [1];
+            [1,2,];
+            [1,][0];
+            a[8];
+                "#;
+
+        let mut parser = Parser::new(get_tokens(input));
+
+        let root = parser.parse();
+        println!("{:?}", root);
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+
+        assert_eq!(5, root.statements().len());
+
+        let s = root.statements()[0]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_array_literal(s.expression(), &vec![]);
+
+        let s = root.statements()[1]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_array_literal(s.expression(), &vec![1]);
+
+        let s = root.statements()[2]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_array_literal(s.expression(), &vec![1, 2]);
+
+        let s = root.statements()[3]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s
+            .unwrap()
+            .expression()
+            .as_any()
+            .downcast_ref::<IndexExpressionNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_integer_literal(s.index(), 0);
+        assert_array_literal(s.array(), &vec![1]);
+
+        let s = root.statements()[4]
+            .as_any()
+            .downcast_ref::<ExpressionStatementNode>();
+        assert!(s.is_some());
+        let s = s
+            .unwrap()
+            .expression()
+            .as_any()
+            .downcast_ref::<IndexExpressionNode>();
+        assert!(s.is_some());
+        let s = s.unwrap();
+        assert_integer_literal(s.index(), 8);
+        assert_identifier(s.array(), "a");
     }
 }
