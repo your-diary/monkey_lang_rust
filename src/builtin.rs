@@ -71,6 +71,27 @@ fn initialize_builtin() -> Builtin {
             if let Some(s) = l.as_any().downcast_ref::<Str>() {
                 return Ok(Rc::new(Int::new(s.value().chars().count() as i32)));
             }
+            if let Some(s) = l.as_any().downcast_ref::<Array>() {
+                return Ok(Rc::new(Int::new(s.elements().len() as i32)));
+            }
+            Err("argument type mismatch".to_string())
+        }),
+    );
+
+    /*-------------------------------------*/
+
+    let append = BuiltinFunction::new(
+        vec![
+            IdentifierNode::new(Token::Ident("l".to_string())),
+            IdentifierNode::new(Token::Ident("v".to_string())),
+        ],
+        Rc::new(|env: &Environment| -> EvalResult {
+            let l = env.get("l").unwrap();
+            if let Some(a) = l.as_any().downcast_ref::<Array>() {
+                let mut elements = a.elements().clone();
+                elements.push(env.get("v").cloned().unwrap());
+                return Ok(Rc::new(Array::new(elements)));
+            }
             Err("argument type mismatch".to_string())
         }),
     );
@@ -90,6 +111,9 @@ fn initialize_builtin() -> Builtin {
             }
             if let Some(v) = v.as_any().downcast_ref::<Str>() {
                 return Ok(Rc::new(Bool::new(!v.value().is_empty())));
+            }
+            if let Some(v) = v.as_any().downcast_ref::<Array>() {
+                return Ok(Rc::new(Bool::new(!v.elements().is_empty())));
             }
             Err("argument type mismatch".to_string())
         }),
@@ -138,6 +162,7 @@ fn initialize_builtin() -> Builtin {
     m.insert("eprint".to_string(), Rc::new(eprint) as _);
     m.insert("exit".to_string(), Rc::new(exit) as _);
     m.insert("len".to_string(), Rc::new(len) as _);
+    m.insert("append".to_string(), Rc::new(append) as _);
     m.insert("bool".to_string(), Rc::new(bool_) as _);
     m.insert("str".to_string(), Rc::new(str_) as _);
     m.insert("int".to_string(), Rc::new(int_) as _);

@@ -811,6 +811,14 @@ mod tests {
 
         assert_integer(r#" len("hello") "#, 5);
         assert_integer(r#" len("あいう") "#, 3);
+        assert_integer(r#" len([]) "#, 0);
+        assert_integer(r#" len([1, 2,]) "#, 2);
+
+        assert_array(r#" let a = [1, 2]; let b = append(a, 3); a "#, &vec![1, 2]);
+        assert_array(
+            r#" let a = [1, 2]; let b = append(a, 3); b "#,
+            &vec![1, 2, 3],
+        );
 
         assert_boolean(r#" bool("") "#, false);
         assert_boolean(r#" bool("hello") "#, true);
@@ -818,6 +826,8 @@ mod tests {
         assert_boolean(r#" bool(1) "#, true);
         assert_boolean(r#" bool(0.0) "#, false);
         assert_boolean(r#" bool(1.1) "#, true);
+        assert_boolean(r#" bool([]) "#, false);
+        assert_boolean(r#" bool([1, 2]) "#, true);
 
         assert_string(r#" str('あ') "#, "あ");
 
