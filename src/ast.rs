@@ -61,21 +61,21 @@ impl Default for RootNode {
 /*-------------------------------------*/
 
 #[derive(Debug, Clone)]
-pub struct BlockStatementNode {
+pub struct BlockExpressionNode {
     statements: Vec<Rc<dyn StatementNode>>,
 }
 
-impl Node for BlockStatementNode {
+impl Node for BlockExpressionNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl StatementNode for BlockStatementNode {}
+impl ExpressionNode for BlockExpressionNode {}
 
-impl BlockStatementNode {
+impl BlockExpressionNode {
     pub fn new() -> Self {
-        BlockStatementNode {
+        BlockExpressionNode {
             statements: Vec::new(),
         }
     }
@@ -87,7 +87,7 @@ impl BlockStatementNode {
     }
 }
 
-impl Default for BlockStatementNode {
+impl Default for BlockExpressionNode {
     fn default() -> Self {
         Self::new()
     }
@@ -255,8 +255,8 @@ impl CallExpressionNode {
 #[derive(Debug)]
 pub struct IfExpressionNode {
     condition: Box<dyn ExpressionNode>,
-    if_value: BlockStatementNode,
-    else_value: Option<BlockStatementNode>,
+    if_value: BlockExpressionNode,
+    else_value: Option<BlockExpressionNode>,
 }
 
 impl Node for IfExpressionNode {
@@ -270,8 +270,8 @@ impl ExpressionNode for IfExpressionNode {}
 impl IfExpressionNode {
     pub fn new(
         condition: Box<dyn ExpressionNode>,
-        if_value: BlockStatementNode,
-        else_value: Option<BlockStatementNode>,
+        if_value: BlockExpressionNode,
+        else_value: Option<BlockExpressionNode>,
     ) -> Self {
         IfExpressionNode {
             condition,
@@ -282,10 +282,10 @@ impl IfExpressionNode {
     pub fn condition(&self) -> &dyn ExpressionNode {
         self.condition.as_ref()
     }
-    pub fn if_value(&self) -> &BlockStatementNode {
+    pub fn if_value(&self) -> &BlockExpressionNode {
         &self.if_value
     }
-    pub fn else_value(&self) -> &Option<BlockStatementNode> {
+    pub fn else_value(&self) -> &Option<BlockExpressionNode> {
         &self.else_value
     }
 }
@@ -455,7 +455,7 @@ impl ArrayLiteralNode {
 #[derive(Debug)]
 pub struct FunctionLiteralNode {
     parameters: Vec<IdentifierNode>,
-    body: BlockStatementNode,
+    body: BlockExpressionNode,
 }
 
 impl Node for FunctionLiteralNode {
@@ -467,13 +467,13 @@ impl Node for FunctionLiteralNode {
 impl ExpressionNode for FunctionLiteralNode {}
 
 impl FunctionLiteralNode {
-    pub fn new(parameters: Vec<IdentifierNode>, body: BlockStatementNode) -> Self {
+    pub fn new(parameters: Vec<IdentifierNode>, body: BlockExpressionNode) -> Self {
         FunctionLiteralNode { parameters, body }
     }
     pub fn parameters(&self) -> &Vec<IdentifierNode> {
         &self.parameters
     }
-    pub fn body(&self) -> &BlockStatementNode {
+    pub fn body(&self) -> &BlockExpressionNode {
         &self.body
     }
 }

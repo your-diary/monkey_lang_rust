@@ -25,8 +25,8 @@ impl Evaluator {
             return self.eval_root_node(n, env);
         }
 
-        if let Some(n) = node.as_any().downcast_ref::<BlockStatementNode>() {
-            return self.eval_block_statement_node(n, env);
+        if let Some(n) = node.as_any().downcast_ref::<BlockExpressionNode>() {
+            return self.eval_block_expression_node(n, env);
         }
 
         if let Some(n) = node.as_any().downcast_ref::<LetStatementNode>() {
@@ -117,13 +117,13 @@ impl Evaluator {
     //     }
     //     return b;
     // }
-    //If we shared the implementations of `eval_root_node()` and `eval_block_statement_node()`, then the result
+    //If we shared the implementations of `eval_root_node()` and `eval_block_expression_node()`, then the result
     // would be `b` rather than `a` as the statement above is evaluated as
     // if (true) {
     //     a;
     //     return b;
     // }
-    fn eval_block_statement_node(&self, n: &BlockStatementNode, env: &Environment) -> EvalResult {
+    fn eval_block_expression_node(&self, n: &BlockExpressionNode, env: &Environment) -> EvalResult {
         let mut block_env = Environment::new(Some(Rc::new(env.clone())));
         let mut ret = Rc::new(Null::new()) as _;
         for statement in n.statements() {
@@ -334,11 +334,11 @@ impl Evaluator {
             e.set_outer(Some(Rc::new(env.clone())));
             function_env.set_outer(Some(Rc::new(e)));
 
-            let result = self.eval_block_statement_node(function.body(), &function_env)?;
+            let result = self.eval_block_expression_node(function.body(), &function_env)?;
 
             //Extracts the value of `ReturnValue` as in `eval_root_node()`.
             //Without this, `let f = fn() { return 3; 4 }; let a = f(); f(); return 100;` returns `3` (not `100`).
-            //See the comments of `eval_root_node()` and `eval_block_statement_node()` for related information.
+            //See the comments of `eval_root_node()` and `eval_block_expression_node()` for related information.
             if let Some(e) = result.as_any().downcast_ref::<ReturnValue>() {
                 return Ok(e.value().clone());
             }
@@ -704,6 +704,8 @@ mod tests {
         assert_integer(r#" let a = 5; a; "#, 5);
         assert_integer(r#" let a = 5 * 5; a; "#, 25);
         assert_integer(r#" let a = 1; let b = a * 2; a + b "#, 3);
+        assert_float(r#" let a = { let b = 3.14; b * 2.0 }; a "#, 6.28);
+        assert_error(r#" let a = { let b = 3.14; b * 2.0 }; b "#, "not defined");
         assert_error(r#" let a = 1; b "#, "not defined");
         assert_error(r#" let a = 1; let a = 2; "#, "already");
         assert_integer(

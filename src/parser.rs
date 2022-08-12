@@ -119,7 +119,6 @@ impl Parser {
 
     fn parse_statement(&mut self) -> ParseResult<Box<dyn StatementNode>> {
         match self.get(self.index)? {
-            Token::Lbrace => self.parse_block_statement().map(|e| Box::new(e) as _),
             Token::Let => self.parse_let_statement().map(|e| Box::new(e) as _),
             Token::Return => self.parse_return_statement().map(|e| Box::new(e) as _),
             _ => self.parse_expression_statement().map(|e| Box::new(e) as _),
@@ -141,8 +140,8 @@ impl Parser {
     }
 
     //{<statement(s)>}
-    fn parse_block_statement(&mut self) -> ParseResult<BlockStatementNode> {
-        let mut ret = BlockStatementNode::new();
+    fn parse_block_expression(&mut self) -> ParseResult<BlockExpressionNode> {
+        let mut ret = BlockExpressionNode::new();
         loop {
             self.index += 1;
             let current_token = self.get(self.index)?;
@@ -196,6 +195,7 @@ impl Parser {
     fn parse_expression(&mut self, precedence: Precedence) -> ParseResult<Box<dyn ExpressionNode>> {
         //parses first expression
         let mut expr: Box<dyn ExpressionNode> = match self.get(self.index)? {
+            Token::Lbrace => self.parse_block_expression().map(|e| Box::new(e) as _),
             Token::Lparen => self.parse_grouped_expression(),
             Token::Ident(_) => self.parse_identifier().map(|e| Box::new(e) as _),
             Token::Int(_) => self.parse_integer_literal().map(|e| Box::new(e) as _),
@@ -383,14 +383,14 @@ impl Parser {
         if !self.expect_and_peek(Token::Lbrace) {
             return Err(ParseError::Error("`{` missing in `if` block".to_string()));
         }
-        let if_value = self.parse_block_statement()?;
+        let if_value = self.parse_block_expression()?;
 
         //else clause
         let else_value = match self.expect_and_peek(Token::Else) {
             false => None,
             true => match self.expect_and_peek(Token::Lbrace) {
                 false => return Err(ParseError::Error("`{` missing in `else` block".to_string())),
-                true => Some(self.parse_block_statement()?),
+                true => Some(self.parse_block_expression()?),
             },
         };
         Ok(IfExpressionNode::new(condition, if_value, else_value))
@@ -432,7 +432,7 @@ impl Parser {
         }
         Ok(FunctionLiteralNode::new(
             parameters,
-            self.parse_block_statement()?,
+            self.parse_block_expression()?,
         ))
     }
 }

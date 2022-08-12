@@ -242,7 +242,7 @@ pub trait FunctionBase: Object {
 #[derive(Clone)]
 pub struct Function {
     parameters: Vec<IdentifierNode>,
-    body: BlockStatementNode,
+    body: BlockExpressionNode,
     env: Environment,
 }
 impl Object for Function {
@@ -261,7 +261,7 @@ impl FunctionBase for Function {
 impl Function {
     pub fn new(
         parameters: Vec<IdentifierNode>,
-        body: BlockStatementNode,
+        body: BlockExpressionNode,
         env: Environment,
     ) -> Self {
         Self {
@@ -270,7 +270,7 @@ impl Function {
             env,
         }
     }
-    pub fn body(&self) -> &BlockStatementNode {
+    pub fn body(&self) -> &BlockExpressionNode {
         &self.body
     }
     pub fn env(&self) -> &Environment {
