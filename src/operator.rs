@@ -26,7 +26,10 @@ pub fn unary_invert(o: &dyn Object) -> EvalResult {
     if let Some(o) = o.as_any().downcast_ref::<Str>() {
         return Ok(Rc::new(Bool::new(o.value().is_empty())));
     }
-    Err("operand of unary `!` is not a number, a boolean nor a string".to_string())
+    if let Some(o) = o.as_any().downcast_ref::<Array>() {
+        return Ok(Rc::new(Bool::new(o.elements().is_empty())));
+    }
+    Err("operand of unary `!` is not a number, a boolean, a string nor an array".to_string())
 }
 
 fn try_cast<'a, T1: Object + 'static, T2: Object + 'static>(
@@ -53,7 +56,14 @@ pub fn binary_plus(left: &dyn Object, right: &dyn Object) -> EvalResult {
             t.0.value().to_string() + t.1.value(),
         ))));
     }
-    Err("operand of binary `+` is not a number nor a string".to_string())
+    if let Some(t) = try_cast::<Array, Array>(left, right) {
+        let mut elements = t.0.elements().clone();
+        for i in 0..t.1.elements().len() {
+            elements.push(t.1.elements()[i].clone());
+        }
+        return Ok(Rc::new(Array::new(elements)));
+    }
+    Err("operand of binary `+` is not a number, a string nor an array".to_string())
 }
 
 pub fn binary_minus(left: &dyn Object, right: &dyn Object) -> EvalResult {

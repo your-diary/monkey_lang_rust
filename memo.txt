@@ -55,8 +55,6 @@ continue
 break
 
 
-array operator
-
 
 
 <!-- vim: set syntax=md: -->

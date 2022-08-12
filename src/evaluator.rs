@@ -558,6 +558,8 @@ mod tests {
         assert_boolean(r#" !3.14 "#, false);
         assert_boolean(r#" !"" "#, true);
         assert_boolean(r#" !"あ" "#, false);
+        assert_boolean(r#" ![] "#, true);
+        assert_boolean(r#" ![1, 2] "#, false);
 
         //unary minus
         assert_integer(r#" -5 "#, -5);
@@ -577,6 +579,8 @@ mod tests {
         assert_float(r#" 3.14 * 2.0 "#, 6.28);
         assert_float(r#" 3.14 / 2.0 "#, 1.57);
         assert_string(r#" "hello" + "world" "#, "helloworld");
+        assert_array(r#" [1, 2] + [] "#, &vec![1, 2]);
+        assert_array(r#" [1, 2] + [3] "#, &vec![1, 2, 3]);
 
         //binary == != < >
         assert_boolean(r#" true == false "#, false);
