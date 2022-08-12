@@ -7,6 +7,15 @@ The basic idea comes from the book [*"Writing An Interpreter In Go"*](https://in
 ```
 $ cargo run
 
+>> let v = 3.14**float(2);
+null
+
+>> v
+9.8596
+
+>> v % 3.
+0.8596000000000004
+
 >> let factorial = fn(x) { if (x == 0) { return 1; }; x * factorial(x - 1) };
 null
 
