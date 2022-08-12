@@ -49,7 +49,9 @@ pub fn binary_plus(left: &dyn Object, right: &dyn Object) -> EvalResult {
         return Ok(Rc::new(Float::new(t.0.value() + t.1.value())));
     }
     if let Some(t) = try_cast::<Str, Str>(left, right) {
-        return Ok(Rc::new(Str::new(t.0.value().to_string() + t.1.value())));
+        return Ok(Rc::new(Str::new(Rc::new(
+            t.0.value().to_string() + t.1.value(),
+        ))));
     }
     Err("operand of binary `+` is not a number nor a string".to_string())
 }

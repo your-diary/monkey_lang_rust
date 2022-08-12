@@ -134,19 +134,32 @@ impl Display for Char {
 
 /*-------------------------------------*/
 
+//implemented by `Str` and `Array`
+pub trait Indexable: Object {
+    fn num_element(&self) -> usize;
+}
+
+#[derive(Clone)]
 pub struct Str {
-    value: String,
+    value: Rc<String>,
+    length: usize, //for performance of `Indexable`
 }
 impl Object for Str {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
-impl Str {
-    pub fn new(value: String) -> Self {
-        Self { value }
+impl Indexable for Str {
+    fn num_element(&self) -> usize {
+        self.length
     }
-    pub fn value(&self) -> &str {
+}
+impl Str {
+    pub fn new(value: Rc<String>) -> Self {
+        let length = value.chars().count();
+        Self { value, length }
+    }
+    pub fn value(&self) -> &Rc<String> {
         &self.value
     }
 }
@@ -165,6 +178,11 @@ pub struct Array {
 impl Object for Array {
     fn as_any(&self) -> &dyn Any {
         self
+    }
+}
+impl Indexable for Array {
+    fn num_element(&self) -> usize {
+        self.elements.len()
     }
 }
 impl Array {

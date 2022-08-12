@@ -214,25 +214,44 @@ impl Evaluator {
         n: &IndexExpressionNode,
         env: &mut Environment,
     ) -> EvalResult {
-        //Note an index array expression is of the form `<identifier>[<index>]` or `<array literal>[<index>]`.
+        //Note an index expression is of the form
+        //- `<identifier>[<index>]`
+        //- `<array literal>[<index>]`
+        //- `<string literal>[<index>]`
+        //
         //`loop { }` here is a loop hack (ref: |https://stackoverflow.com/a/66629605/8776746|)
         #[allow(clippy::never_loop)]
-        let array: Array = loop {
+        let array: Rc<dyn Indexable> = loop {
             if let Some(a) = n.array().as_any().downcast_ref::<ArrayLiteralNode>() {
                 let a = self.eval(a, env)?;
                 if let Some(a) = a.as_any().downcast_ref::<Array>() {
-                    break a.clone();
+                    break Rc::new(a.clone());
+                }
+                unreachable!();
+            };
+            if let Some(a) = n.array().as_any().downcast_ref::<StringLiteralNode>() {
+                let a = self.eval(a, env)?;
+                if let Some(a) = a.as_any().downcast_ref::<Str>() {
+                    break Rc::new(a.clone());
                 }
                 unreachable!();
             };
             if let Some(identifier) = n.array().as_any().downcast_ref::<IdentifierNode>() {
                 let a = self.eval_identifier_node(identifier, env)?;
                 if let Some(a) = a.as_any().downcast_ref::<Array>() {
-                    break a.clone();
+                    break Rc::new(a.clone());
                 }
-                return Err(format!("`{}` is not an array", identifier.get_name()));
+                if let Some(a) = a.as_any().downcast_ref::<Str>() {
+                    break Rc::new(a.clone());
+                }
+                return Err(format!(
+                    "`{}` is not an array nor a string",
+                    identifier.get_name()
+                ));
             }
-            return Err("only identifier or array literal can be indexed".to_string());
+            return Err(
+                "only identifier, array literal or string literal can be indexed".to_string(),
+            );
         };
 
         let index = self.eval(n.index().as_node(), env)?;
@@ -244,11 +263,20 @@ impl Evaluator {
         if (index.value() < 0) {
             return Err("negative array index not allowed".to_string());
         }
-        if ((index.value() as usize) >= array.elements().len()) {
+        if ((index.value() as usize) >= array.num_element()) {
             return Err("array index out of bounds".to_string());
         }
 
-        Ok(array.elements()[index.value() as usize].clone())
+        if let Some(a) = array.as_any().downcast_ref::<Array>() {
+            return Ok(a.elements()[index.value() as usize].clone());
+        }
+        if let Some(a) = array.as_any().downcast_ref::<Str>() {
+            return Ok(Rc::new(Char::new(
+                a.value().chars().nth(index.value() as usize).unwrap(),
+            )));
+        }
+
+        unreachable!();
     }
 
     fn eval_call_expression_node(
@@ -361,7 +389,7 @@ impl Evaluator {
     }
 
     fn eval_string_literal_node(&self, n: &StringLiteralNode, _env: &Environment) -> EvalResult {
-        Ok(Rc::new(Str::new(n.get_value().to_string())))
+        Ok(Rc::new(Str::new(Rc::new(n.get_value().to_string()))))
     }
 
     fn eval_array_literal_node(&self, n: &ArrayLiteralNode, env: &mut Environment) -> EvalResult {
@@ -488,7 +516,7 @@ mod tests {
         let o = read_and_eval(s);
         let o = o.as_any().downcast_ref::<Str>();
         assert!(o.is_some());
-        assert_eq!(v, o.unwrap().value());
+        assert_eq!(v, o.unwrap().value().as_ref());
     }
 
     fn assert_array(s: &str, v: &Vec<i32>) {
@@ -811,11 +839,14 @@ mod tests {
         assert_error(r#" let b = 3; b[0] "#, "not an array");
         assert_error(
             r#" 3.14[0] "#,
-            "only identifier or array literal can be indexed",
+            "only identifier, array literal or string literal can be indexed",
         );
         assert_character(r#" ['a', 'b', 'c'][0] "#, 'a');
         assert_error(r#" [][3.14] "#, "non-integer");
         assert_error(r#" [][-1] "#, "negative");
         assert_error(r#" [0, 1][100] "#, "out of bounds");
+
+        assert_character(r#" let a = "abc"; a[0] "#, 'a');
+        assert_character(r#" "あいうえお"[1] "#, 'い');
     }
 }

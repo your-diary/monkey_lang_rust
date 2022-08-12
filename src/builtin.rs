@@ -100,7 +100,7 @@ fn initialize_builtin() -> Builtin {
         Rc::new(|env: &Environment| -> EvalResult {
             let v = env.get("v").unwrap();
             if let Some(c) = v.as_any().downcast_ref::<Char>() {
-                return Ok(Rc::new(Str::new(c.to_string())));
+                return Ok(Rc::new(Str::new(Rc::new(c.to_string()))));
             }
             Err("argument type mismatch".to_string())
         }),
