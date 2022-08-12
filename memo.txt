@@ -4,21 +4,13 @@
 yacc, bison, ANTLRといった、パーサーを生成するツールも存在する
 そういったツールの多くは、EBNF(|ebnf|)を元に、パーサー用のプログラム(例えばC言語プログラム)を生成する
 
-
-
-
-
 REPL(read eval print loop)は、対話モードのことである(入力を読み、評価し、結果を出力し、再度入力を読み、と繰り返す)
-
 
 パース手法には、大きく分けて次の二つがある
 1. トップダウンパース(top-down parsing): ASTのルートノードを初めに作り、下に降りていく
 2. ボトムアップパース(bottom-up parsing): その逆
 
 二項演算子(binary operator)は、"infix operator"とも呼ばれる("infix"は「接中辞」と訳される。"prefix"や"postfix"と同様、言語学の用語である)
-
-
-
 
 入力
 ↓
@@ -28,16 +20,11 @@ REPL(read eval print loop)は、対話モードのことである(入力を読�
 ↓
 ASTを評価(evaluator.rs)する。その際、オブジェクトはobject.rs、演算子はoperator.rs、スコープはenvironment.rsとなる
 
-
-
-
 # TODO
-
-## operators
 
 ## assignment
 
-var //`let`の対義語
+var //acronym for `let`
 
 = //assignment
 
@@ -53,8 +40,5 @@ var //`let`の対義語
 loop
 continue
 break
-
-
-
 
 <!-- vim: set syntax=md: -->
