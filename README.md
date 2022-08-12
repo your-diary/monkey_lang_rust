@@ -61,6 +61,22 @@ Fizz
 2
 1
 null
+
+>> let fibonacci = fn(arr, iter, max) {
+    if (iter == max) {
+        return arr;
+    } else {
+        if (iter == 0) {
+            return fibonacci([0, 1], iter + 1, max);
+        } else {
+            return fibonacci(arr + [arr[len(arr) - 1] + arr[len(arr) - 2]], iter + 1, max);
+        }
+    }
+};
+null
+
+>> fibonacci([], 0, 10)
+[0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55]
 ```
 
 # 2. Caveats
