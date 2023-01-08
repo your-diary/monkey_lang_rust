@@ -309,7 +309,7 @@ impl IntegerLiteralNode {
     pub fn new(token: Token) -> Self {
         IntegerLiteralNode { token }
     }
-    pub fn get_value(&self) -> i32 {
+    pub fn get_value(&self) -> i64 {
         match self.token {
             Token::Int(i) => i,
             _ => unreachable!(),

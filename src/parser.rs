@@ -461,7 +461,7 @@ mod tests {
         v
     }
 
-    fn assert_integer_literal(n: &dyn ExpressionNode, i: i32) {
+    fn assert_integer_literal(n: &dyn ExpressionNode, i: i64) {
         let n = n.as_any().downcast_ref::<IntegerLiteralNode>();
         assert!(n.is_some());
         let n = n.unwrap();
@@ -496,7 +496,7 @@ mod tests {
         assert_eq!(n.get_value(), s);
     }
 
-    fn assert_array_literal(n: &dyn ExpressionNode, v: &Vec<i32>) {
+    fn assert_array_literal(n: &dyn ExpressionNode, v: &Vec<i64>) {
         let n = n.as_any().downcast_ref::<ArrayLiteralNode>();
         assert!(n.is_some());
         let n = n.unwrap();
@@ -518,7 +518,7 @@ mod tests {
         assert_eq!(n.get_name(), s);
     }
 
-    fn assert_unary_expression(n: &dyn ExpressionNode, op: &Token, i: i32) {
+    fn assert_unary_expression(n: &dyn ExpressionNode, op: &Token, i: i64) {
         let n = n.as_any().downcast_ref::<UnaryExpressionNode>();
         assert!(n.is_some());
         let n = n.unwrap();
@@ -529,7 +529,7 @@ mod tests {
         assert_eq!(e.get_value(), i);
     }
 
-    fn assert_binary_expression(n: &dyn ExpressionNode, op: &Token, i: i32, j: i32) {
+    fn assert_binary_expression(n: &dyn ExpressionNode, op: &Token, i: i64, j: i64) {
         let n = n.as_any().downcast_ref::<BinaryExpressionNode>();
         assert!(n.is_some());
         let n = n.unwrap();

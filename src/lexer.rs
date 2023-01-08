@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use itertools::Itertools;
+
 use super::token::{self, Token};
 use super::util;
 
@@ -13,12 +15,12 @@ pub struct Lexer {
 
 impl Lexer {
     pub fn new(input: &str) -> Self {
-        let chars: Vec<char> = String::from(input).chars().collect();
-        let first_ch = chars.get(0).copied();
+        let chars = String::from(input).chars().collect_vec();
+        let ch = chars.get(0).copied();
         Lexer {
             input: chars,
             position: 0,
-            ch: first_ch,
+            ch,
         }
     }
 
@@ -32,12 +34,6 @@ impl Lexer {
         self.input.get(self.position + 1).copied()
     }
 
-    fn eat_whitespace(&mut self) {
-        while (self.ch.is_some() && self.ch.unwrap().is_ascii_whitespace()) {
-            self.read_next_char();
-        }
-    }
-
     fn read_identifier(&mut self) -> String {
         let position = self.position;
         while (self.ch.is_some() && util::is_identifier(self.ch.unwrap())) {
@@ -48,12 +44,12 @@ impl Lexer {
 
     fn read_number(&mut self) -> LexerResult<String> {
         let position = self.position;
-        while (self.ch.is_some() && util::is_number(self.ch.unwrap())) {
+        while (self.ch.is_some() && util::is_digit(self.ch.unwrap())) {
             self.read_next_char();
         }
         let l = &self.input[position..self.position];
         if (l.iter().filter(|c| (**c == '.')).count() >= 2) {
-            return Err("two or more dot found in a number literal".to_string());
+            return Err("two or more dots found in a number literal".to_string());
         }
         if ((l.len() == 1) && (l[0] == '.')) {
             return Err("isolated `.` found".to_string());
@@ -72,7 +68,7 @@ impl Lexer {
                 l.push('"');
                 break;
             }
-            l.push(match self.ch.unwrap() {
+            let c = match self.ch.unwrap() {
                 '\\' => {
                     self.read_next_char();
                     if (self.ch.is_none()) {
@@ -81,7 +77,8 @@ impl Lexer {
                     util::parse_escaped_character(self.ch.unwrap())
                 }
                 c => c,
-            });
+            };
+            l.push(c);
         }
         self.read_next_char();
         Ok(l.iter().collect())
@@ -89,8 +86,10 @@ impl Lexer {
 
     fn read_character(&mut self) -> LexerResult<String> {
         self.read_next_char();
-        if (self.ch.is_none() || (self.ch.unwrap() == '\'')) {
+        if (self.ch.is_none()) {
             return Err("unexpected end of a character literal".to_string());
+        } else if (self.ch.unwrap() == '\'') {
+            return Err("character literal is empty".to_string());
         }
         let ret = match self.ch.unwrap() {
             '\\' => {
@@ -98,9 +97,7 @@ impl Lexer {
                 if (self.ch.is_none()) {
                     return Err("unexpected end of a character literal".to_string());
                 }
-                vec!['\'', util::parse_escaped_character(self.ch.unwrap()), '\'']
-                    .iter()
-                    .collect()
+                format!("'{}'", util::parse_escaped_character(self.ch.unwrap()))
             }
             c => format!("'{}'", c),
         };
@@ -116,13 +113,15 @@ impl Lexer {
     }
 
     pub fn get_next_token(&mut self) -> LexerResult<Token> {
-        self.eat_whitespace();
+        while (self.ch.is_some() && self.ch.unwrap().is_ascii_whitespace()) {
+            self.read_next_char();
+        }
         if (self.ch.is_none()) {
             return Ok(Token::Eof);
         }
         let sequence: String = match self.ch.unwrap() {
-            c if util::is_number(c) => self.read_number()?,
-            c if util::is_identifier(c) => self.read_identifier(), //this includes a keyword such as `if`
+            c if util::is_digit(c) => self.read_number()?,
+            c if util::is_identifier(c) => self.read_identifier(), //this includes keywords such as `if`
             '"' => self.read_string()?,
             '\'' => self.read_character()?,
             //operators
@@ -169,10 +168,7 @@ impl Lexer {
             }
         };
         match token::lookup_token(&sequence) {
-            None => Err(format!(
-                "not yet implemented or a lexer bug: `{}`",
-                sequence
-            )),
+            None => unreachable!(),
             Some(t) => match t {
                 Token::Ident(_) => Ok(Token::Ident(sequence)),
                 Token::Float(_) => {
@@ -182,7 +178,7 @@ impl Lexer {
                             Ok(i) => Ok(Token::Float(i)),
                         }
                     } else {
-                        match sequence.parse::<i32>() {
+                        match sequence.parse::<i64>() {
                             Err(e) => Err(e.to_string()),
                             Ok(i) => Ok(Token::Int(i)),
                         }
@@ -438,7 +434,7 @@ mod tests {
             //3
             Err("unexpected end".to_string()),
             Err("unexpected end".to_string()),
-            Err("unexpected end".to_string()),
+            Err("empty".to_string()),
             Err("only one".to_string()),
             Ok(Token::Char('a')),
             Ok(Token::Char('あ')),

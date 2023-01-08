@@ -4,7 +4,7 @@ use super::util;
 pub enum Token {
     Eof,
     Ident(String),
-    Int(i32),
+    Int(i64),
     Float(f64),
     String(String),
     Char(char),
@@ -78,7 +78,7 @@ pub fn lookup_token(sequence: &str) -> Option<Token> {
         "else" => Some(Token::Else),
         _ if (first_char == '\'') => Some(Token::Char('\0')),
         _ if (first_char == '"') => Some(Token::String(String::new())),
-        _ if util::is_number(first_char) => Some(Token::Float(0.0)),
+        _ if util::is_digit(first_char) => Some(Token::Float(0.0)),
         _ if util::is_identifier(first_char) => Some(Token::Ident(String::new())),
         _ => None,
     }

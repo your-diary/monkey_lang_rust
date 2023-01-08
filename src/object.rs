@@ -39,7 +39,7 @@ impl Default for Null {
 /*-------------------------------------*/
 
 pub struct Int {
-    value: i32,
+    value: i64,
 }
 impl Object for Int {
     fn as_any(&self) -> &dyn Any {
@@ -47,10 +47,10 @@ impl Object for Int {
     }
 }
 impl Int {
-    pub fn new(value: i32) -> Self {
+    pub fn new(value: i64) -> Self {
         Self { value }
     }
-    pub fn value(&self) -> i32 {
+    pub fn value(&self) -> i64 {
         self.value
     }
 }

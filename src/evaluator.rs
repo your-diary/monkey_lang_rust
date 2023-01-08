@@ -484,7 +484,7 @@ mod tests {
         }
     }
 
-    fn assert_integer(s: &str, v: i32) {
+    fn assert_integer(s: &str, v: i64) {
         let o = read_and_eval(s);
         let o = o.as_any().downcast_ref::<Int>();
         assert!(o.is_some());
@@ -519,7 +519,7 @@ mod tests {
         assert_eq!(v, o.unwrap().value().as_ref());
     }
 
-    fn assert_array(s: &str, v: &Vec<i32>) {
+    fn assert_array(s: &str, v: &Vec<i64>) {
         let o = read_and_eval(s);
         let o = o.as_any().downcast_ref::<Array>();
         assert!(o.is_some());

@@ -6,11 +6,9 @@ use super::lexer::{Lexer, LexerResult};
 use super::parser::Parser;
 use super::token::Token;
 
-const HISTORY_FILE: &str = "./.history";
-
 fn get_tokens(s: &str) -> LexerResult<Vec<Token>> {
     let mut lexer = Lexer::new(s);
-    let mut v = Vec::new();
+    let mut v = vec![];
     loop {
         let token = lexer.get_next_token()?;
         if (token == Token::Eof) {
@@ -22,15 +20,15 @@ fn get_tokens(s: &str) -> LexerResult<Vec<Token>> {
     Ok(v)
 }
 
-pub fn start() -> rustyline::Result<()> {
+pub fn start(history_file: &str) -> rustyline::Result<()> {
     let mut rl = rustyline::Editor::<()>::with_config(
         rustyline::Config::builder()
             .edit_mode(rustyline::EditMode::Vi)
             .auto_add_history(true)
             .build(),
     )?;
-    if let Err(e) = rl.load_history(HISTORY_FILE) {
-        println!("Falied to load the history file `{}`: {}", HISTORY_FILE, e);
+    if let Err(e) = rl.load_history(history_file) {
+        println!("Falied to load the history file `{}`: {}", history_file, e);
     }
 
     let evaluator = Evaluator::new();
@@ -44,7 +42,7 @@ pub fn start() -> rustyline::Result<()> {
                     continue;
                 }
 
-                let mut parser = Parser::new(match get_tokens(&line) {
+                let tokens = match get_tokens(&line) {
                     Err(e) => {
                         println!("\u{001B}[091m{}\u{001B}[0m", e);
                         continue;
@@ -53,7 +51,8 @@ pub fn start() -> rustyline::Result<()> {
                         println!("{:?}", v);
                         v
                     }
-                });
+                };
+                let mut parser = Parser::new(tokens);
 
                 match parser.parse() {
                     Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),
@@ -69,5 +68,5 @@ pub fn start() -> rustyline::Result<()> {
         }
     }
 
-    rl.save_history(HISTORY_FILE)
+    rl.save_history(history_file)
 }

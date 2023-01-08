@@ -56,7 +56,7 @@ fn initialize_builtin() -> Builtin {
         Rc::new(|env: &Environment| -> EvalResult {
             let i = env.get("i").unwrap();
             if let Some(i) = i.as_any().downcast_ref::<Int>() {
-                process::exit(i.value());
+                process::exit(i.value() as i32);
             }
             Err("argument type mismatch".to_string())
         }),
@@ -69,10 +69,10 @@ fn initialize_builtin() -> Builtin {
         Rc::new(|env: &Environment| -> EvalResult {
             let l = env.get("l").unwrap();
             if let Some(s) = l.as_any().downcast_ref::<Str>() {
-                return Ok(Rc::new(Int::new(s.value().chars().count() as i32)));
+                return Ok(Rc::new(Int::new(s.value().chars().count() as i64)));
             }
             if let Some(s) = l.as_any().downcast_ref::<Array>() {
-                return Ok(Rc::new(Int::new(s.elements().len() as i32)));
+                return Ok(Rc::new(Int::new(s.elements().len() as i64)));
             }
             Err("argument type mismatch".to_string())
         }),
@@ -135,7 +135,7 @@ fn initialize_builtin() -> Builtin {
         Rc::new(|env: &Environment| -> EvalResult {
             let v = env.get("v").unwrap();
             if let Some(v) = v.as_any().downcast_ref::<Float>() {
-                return Ok(Rc::new(Int::new(v.value() as i32)));
+                return Ok(Rc::new(Int::new(v.value() as i64)));
             }
             Err("argument type mismatch".to_string())
         }),
