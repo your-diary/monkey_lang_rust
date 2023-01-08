@@ -6,9 +6,9 @@ use super::lexer::{Lexer, LexerResult};
 use super::parser::Parser;
 use super::token::Token;
 
-const COLOR_END: &'static str = "\u{001B}[0m";
-const COLOR_RED: &'static str = "\u{001B}[091m";
-const COLOR_PURPLE: &'static str = "\u{001B}[095m";
+const COLOR_END: &str = "\u{001B}[0m";
+const COLOR_RED: &str = "\u{001B}[091m";
+const COLOR_PURPLE: &str = "\u{001B}[095m";
 
 fn get_tokens(s: &str) -> LexerResult<Vec<Token>> {
     let mut lexer = Lexer::new(s);
