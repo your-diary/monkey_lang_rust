@@ -6,6 +6,10 @@ use super::lexer::{Lexer, LexerResult};
 use super::parser::Parser;
 use super::token::Token;
 
+const COLOR_END: &'static str = "\u{001B}[0m";
+const COLOR_RED: &'static str = "\u{001B}[091m";
+const COLOR_PURPLE: &'static str = "\u{001B}[095m";
+
 fn get_tokens(s: &str) -> LexerResult<Vec<Token>> {
     let mut lexer = Lexer::new(s);
     let mut v = vec![];
@@ -44,7 +48,7 @@ pub fn start(history_file: &str) -> rustyline::Result<()> {
 
                 let tokens = match get_tokens(&line) {
                     Err(e) => {
-                        println!("\u{001B}[091m{}\u{001B}[0m", e);
+                        println!("{}{}{}", COLOR_RED, e, COLOR_END);
                         continue;
                     }
                     Ok(v) => {
@@ -55,12 +59,12 @@ pub fn start(history_file: &str) -> rustyline::Result<()> {
                 let mut parser = Parser::new(tokens);
 
                 match parser.parse() {
-                    Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),
+                    Err(e) => println!("{}{}{}", COLOR_RED, e, COLOR_END),
                     Ok(e) => {
                         // println!("{:#?}", e);
                         match evaluator.eval(&e, &mut env) {
-                            Ok(e) => println!("\u{001B}[095m{}\u{001B}[0m", e),
-                            Err(e) => println!("\u{001B}[091m{}\u{001B}[0m", e),
+                            Ok(e) => println!("{}{}{}", COLOR_PURPLE, e, COLOR_END),
+                            Err(e) => println!("{}{}{}", COLOR_RED, e, COLOR_END),
                         }
                     }
                 }
