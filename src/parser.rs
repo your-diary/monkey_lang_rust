@@ -11,32 +11,32 @@ enum Precedence {
     Lowest = 0,
     Or,      //`||`
     And,     //`&&`
-    Cmp,     //`==`, `<`, `>`
-    Sum,     //`+`
-    Product, //`*`
+    Cmp,     //`==`, `!=`, `<`, `>`, `>=`, `<=`
+    Sum,     //`+`, `-`
+    Product, //`*`, `/`, `%`, `**`
     Unary,   //`-`, `!`
-    Call,    //`(` in `f()`, `[` in `array[index]`
+    Call,    //`(`, `[`
 }
 
 fn lookup_precedence(token: &Token) -> Precedence {
     match token {
-        Token::Plus => Precedence::Sum,
-        Token::Minus => Precedence::Sum,
-        Token::Asterisk => Precedence::Product,
-        Token::Slash => Precedence::Product,
-        Token::Percent => Precedence::Product,
-        Token::Power => Precedence::Product,
+        Token::Or => Precedence::Or,
+        Token::And => Precedence::And,
         Token::Eq => Precedence::Cmp,
         Token::NotEq => Precedence::Cmp,
         Token::Lt => Precedence::Cmp,
         Token::Gt => Precedence::Cmp,
         Token::LtEq => Precedence::Cmp,
         Token::GtEq => Precedence::Cmp,
-        Token::And => Precedence::And,
-        Token::Or => Precedence::Or,
+        Token::Plus => Precedence::Sum,
+        Token::Minus => Precedence::Sum,
+        Token::Asterisk => Precedence::Product,
+        Token::Slash => Precedence::Product,
+        Token::Percent => Precedence::Product,
+        Token::Power => Precedence::Product,
         Token::Lparen => Precedence::Call,
-        Token::Rparen => Precedence::Lowest,
         Token::Lbracket => Precedence::Call,
+        Token::Rparen => Precedence::Lowest,
         Token::Rbracket => Precedence::Lowest,
         _ => Precedence::Lowest,
     }
@@ -75,7 +75,7 @@ pub struct Parser {
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         assert!(!tokens.is_empty());
-        assert_eq!(tokens.iter().last().unwrap(), &Token::Eof);
+        assert_eq!(tokens.last().unwrap(), &Token::Eof);
         Parser { tokens, index: 0 }
     }
 
@@ -88,22 +88,20 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> ParseResult<RootNode> {
-        let mut root = RootNode::new();
+        let mut statements = vec![];
+        //reads the next statement
         loop {
             let current_token = match self.get(self.index) {
                 Err(ParseError::Eof) => break,
                 Err(e) => return Err(e),
                 Ok(e) => e,
             };
-            if (current_token == &Token::Eof) {
-                break;
-            }
             //empty statement
             if (current_token == &Token::Semicolon) {
                 self.index += 1;
                 continue;
             };
-            root.statements_mut().push(match self.parse_statement() {
+            let statement = match self.parse_statement() {
                 Err(ParseError::Eof) => {
                     return Err(ParseError::Error(
                         "unexpected eof in the middle of a statement".to_string(),
@@ -111,10 +109,11 @@ impl Parser {
                 }
                 Err(e) => return Err(e),
                 Ok(e) => e,
-            });
+            };
+            statements.push(statement);
             self.index += 1
         }
-        Ok(root)
+        Ok(RootNode::new(statements))
     }
 
     fn parse_statement(&mut self) -> ParseResult<Box<dyn StatementNode>> {
@@ -141,16 +140,16 @@ impl Parser {
 
     //{<statement(s)>}
     fn parse_block_expression(&mut self) -> ParseResult<BlockExpressionNode> {
-        let mut ret = BlockExpressionNode::new();
+        let mut statements = vec![];
         loop {
             self.index += 1;
             let current_token = self.get(self.index)?;
             if (current_token == &Token::Rbrace) {
                 break;
             }
-            ret.statements_mut().push(self.parse_statement()?.into());
+            statements.push(self.parse_statement()?.into());
         }
-        Ok(ret)
+        Ok(BlockExpressionNode::new(statements))
     }
 
     //let <identifier> = <expression>;
@@ -215,7 +214,7 @@ impl Parser {
             ))),
         }?;
 
-        //parses a binary expression or a call/index expression if the next token is a binary operator or a `(` / `[`
+        //parses a binary expression or a call/index expression if the next token is a binary operator, `(` or `[`
         loop {
             let next_token = match self.get(self.index + 1) {
                 Err(ParseError::Eof) => break, //overlooks eof error as semicolon is optional after an expression
@@ -228,11 +227,8 @@ impl Parser {
             }
             self.index += 1;
             expr = match next_token {
-                //call expression
                 Token::Lparen => Box::new(self.parse_call_expression(expr)?) as _,
-                //array index expression
                 Token::Lbracket => Box::new(self.parse_index_expression(expr)?) as _,
-                //binary expression
                 _ => Box::new(self.parse_binary_expression(expr)?) as _,
             };
         }
@@ -281,8 +277,9 @@ impl Parser {
     }
 
     //[<e1>, <e2>, ...]
+    //The last <e> can optionally be followed by a comma (e.g. `[1, 2, 3,]`).
     fn parse_array_literal(&mut self) -> ParseResult<ArrayLiteralNode> {
-        let mut elements = Vec::new();
+        let mut elements = vec![];
         loop {
             self.index += 1;
             match self.get(self.index)? {
@@ -300,8 +297,10 @@ impl Parser {
     fn parse_unary_expression(&mut self) -> ParseResult<UnaryExpressionNode> {
         let operator = self.get(self.index)?.clone();
         self.index += 1;
-        self.parse_expression(Precedence::Unary)
-            .map(|e| UnaryExpressionNode::new(operator, e))
+        Ok(UnaryExpressionNode::new(
+            operator,
+            self.parse_expression(Precedence::Unary)?,
+        ))
     }
 
     //<expression> <operator> <expression>
@@ -311,8 +310,8 @@ impl Parser {
     ) -> ParseResult<BinaryExpressionNode> {
         let operator = self.get(self.index)?.clone();
         self.index += 1;
-        self.parse_expression(lookup_precedence(&operator))
-            .map(|right| BinaryExpressionNode::new(operator, left, right))
+        let right = self.parse_expression(lookup_precedence(&operator))?;
+        Ok(BinaryExpressionNode::new(operator, left, right))
     }
 
     //<array name or array literal>[<index>]
@@ -351,7 +350,7 @@ impl Parser {
         &mut self,
         function: Box<dyn ExpressionNode>,
     ) -> ParseResult<CallExpressionNode> {
-        let mut arguments = Vec::new();
+        let mut arguments = vec![];
         loop {
             self.index += 1;
             match self.get(self.index)? {
@@ -410,7 +409,7 @@ impl Parser {
                 "`(` missing in function parameter list".to_string(),
             ));
         }
-        let mut parameters = Vec::new();
+        let mut parameters = vec![];
         loop {
             self.index += 1;
             match self.get(self.index)? {

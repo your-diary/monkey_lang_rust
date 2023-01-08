@@ -39,22 +39,11 @@ impl Node for RootNode {
 }
 
 impl RootNode {
-    pub fn new() -> Self {
-        RootNode {
-            statements: Vec::new(),
-        }
+    pub fn new(statements: Vec<Box<dyn StatementNode>>) -> Self {
+        RootNode { statements }
     }
     pub fn statements(&self) -> &Vec<Box<dyn StatementNode>> {
         &self.statements
-    }
-    pub fn statements_mut(&mut self) -> &mut Vec<Box<dyn StatementNode>> {
-        &mut self.statements
-    }
-}
-
-impl Default for RootNode {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -74,22 +63,11 @@ impl Node for BlockExpressionNode {
 impl ExpressionNode for BlockExpressionNode {}
 
 impl BlockExpressionNode {
-    pub fn new() -> Self {
-        BlockExpressionNode {
-            statements: Vec::new(),
-        }
+    pub fn new(statements: Vec<Rc<dyn StatementNode>>) -> Self {
+        BlockExpressionNode { statements }
     }
     pub fn statements(&self) -> &Vec<Rc<dyn StatementNode>> {
         &self.statements
-    }
-    pub fn statements_mut(&mut self) -> &mut Vec<Rc<dyn StatementNode>> {
-        &mut self.statements
-    }
-}
-
-impl Default for BlockExpressionNode {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
