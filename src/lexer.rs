@@ -247,12 +247,13 @@ mod tests {
     // #[ignore]
     fn test_string_01() {
         let input = r#"
-            "" "apple" "apple\\bear\ncow"
+            "" "apple" "apple\\bear\ncow" "こんにちは"
         "#;
         let expected = vec![
             Ok(Token::String("".to_string())),
             Ok(Token::String("apple".to_string())),
             Ok(Token::String("apple\\bear\ncow".to_string())),
+            Ok(Token::String("こんにちは".to_string())),
             Ok(Token::Eof),
         ];
         test(input, &expected);
@@ -299,9 +300,14 @@ mod tests {
     // #[ignore]
     fn test_character_01() {
         let input = r#"
-            'c' '\n'
+            'c' '\n' 'あ'
         "#;
-        let expected = vec![Ok(Token::Char('c')), Ok(Token::Char('\n')), Ok(Token::Eof)];
+        let expected = vec![
+            Ok(Token::Char('c')),
+            Ok(Token::Char('\n')),
+            Ok(Token::Char('あ')),
+            Ok(Token::Eof),
+        ];
         test(input, &expected);
     }
 
