@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::fmt::{self, Display};
 use std::mem;
 
@@ -68,19 +69,28 @@ impl Display for ParseError {
 /*-------------------------------------*/
 
 pub struct Parser {
-    tokens: Vec<Token>,
-    index: usize, //current position
+    tokens: VecDeque<Token>,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         assert!(!tokens.is_empty());
         assert_eq!(tokens.last().unwrap(), &Token::Eof);
-        Parser { tokens, index: 0 }
+        Parser {
+            tokens: VecDeque::from(tokens),
+        }
     }
 
-    fn get(&self, index: usize) -> ParseResult<&Token> {
-        match self.tokens.get(index) {
+    fn get_next(&mut self) -> ParseResult<Token> {
+        match self.tokens.pop_front() {
+            None => unreachable!(), //at least `Eof` is assumed to exist as a guardian
+            Some(Token::Eof) => Err(ParseError::Eof),
+            Some(t) => Ok(t),
+        }
+    }
+
+    fn peek_next(&self) -> ParseResult<&Token> {
+        match self.tokens.get(0) {
             None => unreachable!(), //at least `Eof` is assumed to exist as a guardian
             Some(Token::Eof) => Err(ParseError::Eof),
             Some(t) => Ok(t),
@@ -91,16 +101,14 @@ impl Parser {
         let mut statements = vec![];
         //reads the next statement
         loop {
-            let current_token = match self.get(self.index) {
-                Err(ParseError::Eof) => break,
-                Err(e) => return Err(e),
-                Ok(e) => e,
-            };
+            if (self.tokens[0] == Token::Eof) {
+                break;
+            }
             //empty statement
-            if (current_token == &Token::Semicolon) {
-                self.index += 1;
+            if (self.expect_next(Token::Semicolon)) {
+                self.get_next().unwrap();
                 continue;
-            };
+            }
             let statement = match self.parse_statement() {
                 Err(ParseError::Eof) => {
                     return Err(ParseError::Error(
@@ -111,13 +119,12 @@ impl Parser {
                 Ok(e) => e,
             };
             statements.push(statement);
-            self.index += 1
         }
         Ok(RootNode::new(statements))
     }
 
     fn parse_statement(&mut self) -> ParseResult<Box<dyn StatementNode>> {
-        match self.get(self.index)? {
+        match self.peek_next()? {
             Token::Let => self.parse_let_statement().map(|e| Box::new(e) as _),
             Token::Return => self.parse_return_statement().map(|e| Box::new(e) as _),
             _ => self.parse_expression_statement().map(|e| Box::new(e) as _),
@@ -126,25 +133,18 @@ impl Parser {
 
     //asserts the variant of the next token without caring about its value,
     // and advances to it if true while staying at the same position if false
-    fn expect_and_peek(&mut self, token: Token) -> bool {
-        let next_token = self.get(self.index + 1);
-        if (next_token.is_ok()
-            && (mem::discriminant(next_token.unwrap()) == mem::discriminant(&token)))
-        {
-            self.index += 1;
-            true
-        } else {
-            false
-        }
+    fn expect_next(&mut self, token: Token) -> bool {
+        let next = self.peek_next();
+        next.is_ok() && (mem::discriminant(next.unwrap()) == mem::discriminant(&token))
     }
 
     //{<statement(s)>}
     fn parse_block_expression(&mut self) -> ParseResult<BlockExpressionNode> {
+        assert_eq!(Token::Lbrace, self.get_next().unwrap());
         let mut statements = vec![];
         loop {
-            self.index += 1;
-            let current_token = self.get(self.index)?;
-            if (current_token == &Token::Rbrace) {
+            if (self.peek_next()? == &Token::Rbrace) {
+                self.get_next().unwrap();
                 break;
             }
             statements.push(self.parse_statement()?.into());
@@ -154,46 +154,57 @@ impl Parser {
 
     //let <identifier> = <expression>;
     fn parse_let_statement(&mut self) -> ParseResult<LetStatementNode> {
-        if (!self.expect_and_peek(Token::Ident(String::new()))) {
+        assert_eq!(Token::Let, self.get_next().unwrap());
+
+        if (!self.expect_next(Token::Ident(String::new()))) {
             return Err(ParseError::Error(
                 "identifier missing or reserved keyword used after `let`".to_string(),
             ));
         }
-        let identifier = IdentifierNode::new(self.get(self.index)?.clone());
-        if (!self.expect_and_peek(Token::Assign)) {
+        let identifier = IdentifierNode::new(self.get_next()?);
+
+        if (!self.expect_next(Token::Assign)) {
             return Err(ParseError::Error("`=` missing in `let`".to_string()));
         }
-        self.index += 1;
+        self.get_next().unwrap();
+
         let expr = self.parse_expression(Precedence::Lowest)?;
-        if (!self.expect_and_peek(Token::Semicolon)) {
+
+        if (!self.expect_next(Token::Semicolon)) {
             return Err(ParseError::Error("`;` missing in `let`".to_string()));
         }
+        self.get_next().unwrap();
+
         Ok(LetStatementNode::new(identifier, expr))
     }
 
     //return [<expression>];
     fn parse_return_statement(&mut self) -> ParseResult<ReturnStatementNode> {
-        if (self.expect_and_peek(Token::Semicolon)) {
+        assert_eq!(Token::Return, self.get_next().unwrap());
+        if (self.expect_next(Token::Semicolon)) {
+            self.get_next().unwrap();
             return Ok(ReturnStatementNode::new(None));
         }
-        self.index += 1;
         let expr = self.parse_expression(Precedence::Lowest)?;
-        if (!self.expect_and_peek(Token::Semicolon)) {
+        if (!self.expect_next(Token::Semicolon)) {
             return Err(ParseError::Error("`;` missing in `return`".to_string()));
         }
+        self.get_next().unwrap();
         Ok(ReturnStatementNode::new(Some(expr)))
     }
 
     //<expression>[;]
     fn parse_expression_statement(&mut self) -> ParseResult<ExpressionStatementNode> {
         let expr = self.parse_expression(Precedence::Lowest)?;
-        self.expect_and_peek(Token::Semicolon); //we ignore the result as semicolon is optional
+        if (self.expect_next(Token::Semicolon)) {
+            self.get_next().unwrap();
+        }
         Ok(ExpressionStatementNode::new(expr))
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> ParseResult<Box<dyn ExpressionNode>> {
         //parses first expression
-        let mut expr: Box<dyn ExpressionNode> = match self.get(self.index)? {
+        let mut expr: Box<dyn ExpressionNode> = match self.peek_next()? {
             Token::Lbrace => self.parse_block_expression().map(|e| Box::new(e) as _),
             Token::Lparen => self.parse_grouped_expression(),
             Token::Ident(_) => self.parse_identifier().map(|e| Box::new(e) as _),
@@ -216,17 +227,15 @@ impl Parser {
 
         //parses a binary expression or a call/index expression if the next token is a binary operator, `(` or `[`
         loop {
-            let next_token = match self.get(self.index + 1) {
-                Err(ParseError::Eof) => break, //overlooks eof error as semicolon is optional after an expression
-                Err(e) => return Err(e),
-                Ok(e) => e.clone(),
+            let next = match self.peek_next() {
+                Err(ParseError::Eof) => break,
+                Err(_) => unreachable!(),
+                Ok(e) => e,
             };
-            if ((next_token == Token::Semicolon) || (precedence >= lookup_precedence(&next_token)))
-            {
+            if ((next == &Token::Semicolon) || (precedence >= lookup_precedence(next))) {
                 break;
             }
-            self.index += 1;
-            expr = match next_token {
+            expr = match next {
                 Token::Lparen => Box::new(self.parse_call_expression(expr)?) as _,
                 Token::Lbracket => Box::new(self.parse_index_expression(expr)?) as _,
                 _ => Box::new(self.parse_binary_expression(expr)?) as _,
@@ -241,52 +250,57 @@ impl Parser {
     //Note `Token::Rparen` has the lowest `Precedence`.
     //That's why this simple method works.
     fn parse_grouped_expression(&mut self) -> ParseResult<Box<dyn ExpressionNode>> {
-        self.index += 1;
-        let e = self.parse_expression(Precedence::Lowest)?;
-        if self.expect_and_peek(Token::Rparen) {
-            Ok(e)
-        } else {
-            Err(ParseError::Error(
+        assert_eq!(Token::Lparen, self.get_next().unwrap());
+        let expr = self.parse_expression(Precedence::Lowest)?;
+        if (!self.expect_next(Token::Rparen)) {
+            return Err(ParseError::Error(
                 "`)` missing in grouped expression".to_string(),
-            ))
+            ));
         }
+        self.get_next().unwrap();
+        Ok(expr)
     }
 
-    fn parse_identifier(&self) -> ParseResult<IdentifierNode> {
-        Ok(IdentifierNode::new(self.get(self.index)?.clone()))
+    fn parse_identifier(&mut self) -> ParseResult<IdentifierNode> {
+        Ok(IdentifierNode::new(self.get_next()?))
     }
 
-    fn parse_integer_literal(&self) -> ParseResult<IntegerLiteralNode> {
-        Ok(IntegerLiteralNode::new(self.get(self.index)?.clone()))
+    fn parse_integer_literal(&mut self) -> ParseResult<IntegerLiteralNode> {
+        Ok(IntegerLiteralNode::new(self.get_next()?))
     }
 
-    fn parse_float_literal(&self) -> ParseResult<FloatLiteralNode> {
-        Ok(FloatLiteralNode::new(self.get(self.index)?.clone()))
+    fn parse_float_literal(&mut self) -> ParseResult<FloatLiteralNode> {
+        Ok(FloatLiteralNode::new(self.get_next()?))
     }
 
-    fn parse_boolean_literal(&self) -> ParseResult<BooleanLiteralNode> {
-        Ok(BooleanLiteralNode::new(self.get(self.index)?.clone()))
+    fn parse_boolean_literal(&mut self) -> ParseResult<BooleanLiteralNode> {
+        Ok(BooleanLiteralNode::new(self.get_next()?))
     }
 
-    fn parse_character_literal(&self) -> ParseResult<CharacterLiteralNode> {
-        Ok(CharacterLiteralNode::new(self.get(self.index)?.clone()))
+    fn parse_character_literal(&mut self) -> ParseResult<CharacterLiteralNode> {
+        Ok(CharacterLiteralNode::new(self.get_next()?))
     }
 
-    fn parse_string_literal(&self) -> ParseResult<StringLiteralNode> {
-        Ok(StringLiteralNode::new(self.get(self.index)?.clone()))
+    fn parse_string_literal(&mut self) -> ParseResult<StringLiteralNode> {
+        Ok(StringLiteralNode::new(self.get_next()?))
     }
 
     //[<e1>, <e2>, ...]
     //The last <e> can optionally be followed by a comma (e.g. `[1, 2, 3,]`).
     fn parse_array_literal(&mut self) -> ParseResult<ArrayLiteralNode> {
+        assert_eq!(Token::Lbracket, self.get_next().unwrap());
         let mut elements = vec![];
         loop {
-            self.index += 1;
-            match self.get(self.index)? {
-                Token::Rbracket => break,
+            match self.peek_next()? {
+                Token::Rbracket => {
+                    self.get_next().unwrap();
+                    break;
+                }
                 _ => {
                     elements.push(self.parse_expression(Precedence::Lowest)?);
-                    self.expect_and_peek(Token::Comma); //consumes a comma if exists
+                    if (self.expect_next(Token::Comma)) {
+                        self.get_next().unwrap();
+                    }
                 }
             }
         }
@@ -295,8 +309,7 @@ impl Parser {
 
     //<operator> <expression>
     fn parse_unary_expression(&mut self) -> ParseResult<UnaryExpressionNode> {
-        let operator = self.get(self.index)?.clone();
-        self.index += 1;
+        let operator = self.get_next()?;
         Ok(UnaryExpressionNode::new(
             operator,
             self.parse_expression(Precedence::Unary)?,
@@ -308,8 +321,7 @@ impl Parser {
         &mut self,
         left: Box<dyn ExpressionNode>,
     ) -> ParseResult<BinaryExpressionNode> {
-        let operator = self.get(self.index)?.clone();
-        self.index += 1;
+        let operator = self.get_next()?;
         let right = self.parse_expression(lookup_precedence(&operator))?;
         Ok(BinaryExpressionNode::new(operator, left, right))
     }
@@ -319,22 +331,19 @@ impl Parser {
         &mut self,
         array: Box<dyn ExpressionNode>,
     ) -> ParseResult<IndexExpressionNode> {
-        self.index += 1;
-        if let Token::Rbracket = self.get(self.index)? {
+        assert_eq!(Token::Lbracket, self.get_next().unwrap());
+        if (self.expect_next(Token::Rbracket)) {
             return Err(ParseError::Error(
                 "empty index in array index expression".to_string(),
             ));
         }
         let index = self.parse_expression(Precedence::Lowest)?;
-        self.index += 1;
-        match self.get(self.index)? {
-            Token::Rbracket => (),
-            _ => {
-                return Err(ParseError::Error(
-                    "`]` missing in array index expression".to_string(),
-                ))
-            }
+        if (!self.expect_next(Token::Rbracket)) {
+            return Err(ParseError::Error(
+                "`]` missing in array index expression".to_string(),
+            ));
         }
+        self.get_next().unwrap();
         Ok(IndexExpressionNode::new(array, index))
     }
 
@@ -350,14 +359,19 @@ impl Parser {
         &mut self,
         function: Box<dyn ExpressionNode>,
     ) -> ParseResult<CallExpressionNode> {
+        assert_eq!(Token::Lparen, self.get_next().unwrap());
         let mut arguments = vec![];
         loop {
-            self.index += 1;
-            match self.get(self.index)? {
-                Token::Rparen => break,
+            match self.peek_next()? {
+                Token::Rparen => {
+                    self.get_next().unwrap();
+                    break;
+                }
                 _ => {
                     arguments.push(self.parse_expression(Precedence::Lowest)?);
-                    self.expect_and_peek(Token::Comma); //consumes a comma if exists
+                    if (self.expect_next(Token::Comma)) {
+                        self.get_next().unwrap();
+                    }
                 }
             }
         }
@@ -366,32 +380,41 @@ impl Parser {
 
     //if (<expression>) { <statement(s)> } [else { <statement(s)> }]
     fn parse_if_expression(&mut self) -> ParseResult<IfExpressionNode> {
+        assert_eq!(Token::If, self.get_next().unwrap());
+
         //if clause
-        if !self.expect_and_peek(Token::Lparen) {
+        if (!self.expect_next(Token::Lparen)) {
             return Err(ParseError::Error(
                 "`(` missing in `if` condition".to_string(),
             ));
         }
-        self.index += 1;
+        self.get_next().unwrap();
         let condition = self.parse_expression(Precedence::Lowest)?;
-        if !self.expect_and_peek(Token::Rparen) {
+        if (!self.expect_next(Token::Rparen)) {
             return Err(ParseError::Error(
                 "`)` missing in `if` condition".to_string(),
             ));
         }
-        if !self.expect_and_peek(Token::Lbrace) {
+        self.get_next().unwrap();
+        if (!self.expect_next(Token::Lbrace)) {
             return Err(ParseError::Error("`{` missing in `if` block".to_string()));
         }
         let if_value = self.parse_block_expression()?;
 
         //else clause
-        let else_value = match self.expect_and_peek(Token::Else) {
+        let else_value = match self.expect_next(Token::Else) {
             false => None,
-            true => match self.expect_and_peek(Token::Lbrace) {
-                false => return Err(ParseError::Error("`{` missing in `else` block".to_string())),
-                true => Some(self.parse_block_expression()?),
-            },
+            true => {
+                self.get_next().unwrap();
+                match self.expect_next(Token::Lbrace) {
+                    false => {
+                        return Err(ParseError::Error("`{` missing in `else` block".to_string()))
+                    }
+                    true => Some(self.parse_block_expression()?),
+                }
+            }
         };
+
         Ok(IfExpressionNode::new(condition, if_value, else_value))
     }
 
@@ -404,19 +427,25 @@ impl Parser {
     // (a)
     // (a, b)
     fn parse_function_literal(&mut self) -> ParseResult<FunctionLiteralNode> {
-        if !self.expect_and_peek(Token::Lparen) {
+        assert_eq!(Token::Function, self.get_next().unwrap());
+        if (!self.expect_next(Token::Lparen)) {
             return Err(ParseError::Error(
                 "`(` missing in function parameter list".to_string(),
             ));
         }
+        self.get_next().unwrap();
         let mut parameters = vec![];
         loop {
-            self.index += 1;
-            match self.get(self.index)? {
-                Token::Rparen => break,
+            match self.peek_next()? {
+                Token::Rparen => {
+                    self.get_next().unwrap();
+                    break;
+                }
                 Token::Ident(_) => {
                     parameters.push(self.parse_identifier()?);
-                    self.expect_and_peek(Token::Comma); //consumes a comma if exists
+                    if (self.expect_next(Token::Comma)) {
+                        self.get_next().unwrap();
+                    }
                 }
                 t => {
                     return Err(ParseError::Error(format!(
@@ -426,7 +455,7 @@ impl Parser {
                 }
             }
         }
-        if !self.expect_and_peek(Token::Lbrace) {
+        if (!self.expect_next(Token::Lbrace)) {
             return Err(ParseError::Error("function body missing".to_string()));
         }
         Ok(FunctionLiteralNode::new(
@@ -563,6 +592,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test01() {
         let input = r#"
             let x = 5;
@@ -593,6 +623,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test02() {
         let input = r#"
                     return 5;
@@ -622,6 +653,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test03() {
         let input = r#"
                 foo;;
@@ -650,6 +682,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test04() {
         let input = r#"
                 5;
@@ -681,6 +714,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test05() {
         let input = r#"
                 true;
@@ -709,6 +743,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test06() {
         let input = r#"
                 'あ';
@@ -740,6 +775,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test07() {
         let input = r#"
                     !5;
@@ -769,6 +805,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test08() {
         let input = r#"
                     1 + 2;
@@ -824,6 +861,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test09() {
         let input = r#"
                     1 + 2 * 3;
@@ -855,6 +893,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test10() {
         let input = r#"
                     (1 + 2) * 3;
@@ -886,6 +925,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test11() {
         let input = r#"
                     if (x < y) { x }; 5;
@@ -931,6 +971,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test12() {
         let input = r#"
                         if (x != y) {
@@ -990,6 +1031,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test13() {
         let input = r#"
                     fn () {
@@ -1057,6 +1099,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test14() {
         let input = r#"
             f()
@@ -1097,6 +1140,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore]
     fn test15() {
         let input = r#"
             [];
