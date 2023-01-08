@@ -8,8 +8,8 @@ pub fn is_digit(c: char) -> bool {
 
 //An escaped character is of the form `\n`.
 //This function receives `n` and returns `\n`, for example.
-pub fn parse_escaped_character(c: char) -> char {
-    match c {
+pub fn parse_escaped_character(c: char) -> Option<char> {
+    let ret = match c {
         '\\' => '\\',
         '\'' => '\'',
         '"' => '"',
@@ -17,6 +17,7 @@ pub fn parse_escaped_character(c: char) -> char {
         'n' => '\n',
         'r' => '\r',
         't' => '\t',
-        c => c,
-    }
+        _ => return None,
+    };
+    Some(ret)
 }

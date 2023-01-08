@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use super::util;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -41,45 +43,60 @@ pub enum Token {
     Else,
 }
 
-pub fn lookup_token(sequence: &str) -> Option<Token> {
+pub fn lookup_token(sequence: &str) -> Result<Token, String> {
     let first_char = sequence.chars().next().unwrap();
-    match sequence {
-        "\0" => Some(Token::Eof),
-        "=" => Some(Token::Assign),
-        "+" => Some(Token::Plus),
-        "-" => Some(Token::Minus),
-        "*" => Some(Token::Asterisk),
-        "/" => Some(Token::Slash),
-        "%" => Some(Token::Percent),
-        "**" => Some(Token::Power),
-        "!" => Some(Token::Invert),
-        "==" => Some(Token::Eq),
-        "!=" => Some(Token::NotEq),
-        "<" => Some(Token::Lt),
-        ">" => Some(Token::Gt),
-        "<=" => Some(Token::LtEq),
-        ">=" => Some(Token::GtEq),
-        "&&" => Some(Token::And),
-        "||" => Some(Token::Or),
-        "," => Some(Token::Comma),
-        ";" => Some(Token::Semicolon),
-        "(" => Some(Token::Lparen),
-        ")" => Some(Token::Rparen),
-        "{" => Some(Token::Lbrace),
-        "}" => Some(Token::Rbrace),
-        "[" => Some(Token::Lbracket),
-        "]" => Some(Token::Rbracket),
-        "fn" => Some(Token::Function),
-        "let" => Some(Token::Let),
-        "return" => Some(Token::Return),
-        "true" => Some(Token::True),
-        "false" => Some(Token::False),
-        "if" => Some(Token::If),
-        "else" => Some(Token::Else),
-        _ if (first_char == '\'') => Some(Token::Char('\0')),
-        _ if (first_char == '"') => Some(Token::String(String::new())),
-        _ if util::is_digit(first_char) => Some(Token::Float(0.0)),
-        _ if util::is_identifier(first_char) => Some(Token::Ident(String::new())),
-        _ => None,
-    }
+    let ret = match sequence {
+        "=" => Token::Assign,
+        "+" => Token::Plus,
+        "-" => Token::Minus,
+        "*" => Token::Asterisk,
+        "/" => Token::Slash,
+        "%" => Token::Percent,
+        "**" => Token::Power,
+        "!" => Token::Invert,
+        "==" => Token::Eq,
+        "!=" => Token::NotEq,
+        "<" => Token::Lt,
+        ">" => Token::Gt,
+        "<=" => Token::LtEq,
+        ">=" => Token::GtEq,
+        "&&" => Token::And,
+        "||" => Token::Or,
+        "," => Token::Comma,
+        ";" => Token::Semicolon,
+        "(" => Token::Lparen,
+        ")" => Token::Rparen,
+        "{" => Token::Lbrace,
+        "}" => Token::Rbrace,
+        "[" => Token::Lbracket,
+        "]" => Token::Rbracket,
+        "fn" => Token::Function,
+        "let" => Token::Let,
+        "return" => Token::Return,
+        "true" => Token::True,
+        "false" => Token::False,
+        "if" => Token::If,
+        "else" => Token::Else,
+        _ if (first_char == '\'') => Token::Char(sequence.chars().nth(1).unwrap()),
+        _ if (first_char == '"') => {
+            let l = sequence.chars().collect_vec();
+            Token::String(l.into_iter().skip(1).dropping_back(1).collect())
+        }
+        _ if util::is_digit(first_char) => {
+            if (sequence.contains('.')) {
+                match sequence.parse::<f64>() {
+                    Err(e) => return Err(e.to_string()),
+                    Ok(i) => Token::Float(i),
+                }
+            } else {
+                match sequence.parse::<i64>() {
+                    Err(e) => return Err(e.to_string()),
+                    Ok(i) => Token::Int(i),
+                }
+            }
+        }
+        _ if util::is_identifier(first_char) => Token::Ident(sequence.to_string()),
+        _ => unreachable!(),
+    };
+    Ok(ret)
 }

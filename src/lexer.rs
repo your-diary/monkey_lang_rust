@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use itertools::Itertools;
+use std::collections::{HashMap, VecDeque};
 
 use super::token::{self, Token};
 use super::util;
@@ -8,118 +6,106 @@ use super::util;
 pub type LexerResult<T> = Result<T, String>;
 
 pub struct Lexer {
-    input: Vec<char>,
-    position: usize,  //last read position
-    ch: Option<char>, //last read character
+    queue: VecDeque<char>,
 }
 
 impl Lexer {
     pub fn new(input: &str) -> Self {
-        let chars = String::from(input).chars().collect_vec();
-        let ch = chars.get(0).copied();
         Lexer {
-            input: chars,
-            position: 0,
-            ch,
+            queue: input.to_string().chars().collect(),
         }
-    }
-
-    fn read_next_char(&mut self) {
-        self.position += 1;
-        self.ch = self.input.get(self.position).copied();
-    }
-
-    //like `read_next_char()` but immutable and instead returns the next character
-    fn peek_next_char(&self) -> Option<char> {
-        self.input.get(self.position + 1).copied()
     }
 
     fn read_identifier(&mut self) -> String {
-        let position = self.position;
-        while (self.ch.is_some() && util::is_identifier(self.ch.unwrap())) {
-            self.read_next_char();
+        let mut l = vec![];
+        while (!self.queue.is_empty() && util::is_identifier(self.queue[0])) {
+            l.push(self.queue.pop_front().unwrap());
         }
-        self.input[position..self.position].iter().collect()
+        l.into_iter().collect()
     }
 
     fn read_number(&mut self) -> LexerResult<String> {
-        let position = self.position;
-        while (self.ch.is_some() && util::is_digit(self.ch.unwrap())) {
-            self.read_next_char();
+        let mut l = vec![];
+        while (!self.queue.is_empty() && util::is_digit(self.queue[0])) {
+            l.push(self.queue.pop_front().unwrap());
         }
-        let l = &self.input[position..self.position];
         if (l.iter().filter(|c| (**c == '.')).count() >= 2) {
             return Err("two or more dots found in a number literal".to_string());
-        }
-        if ((l.len() == 1) && (l[0] == '.')) {
+        } else if ((l.len() == 1) && (l[0] == '.')) {
             return Err("isolated `.` found".to_string());
         }
-        Ok(l.iter().collect())
+        Ok(l.into_iter().collect())
     }
 
     fn read_string(&mut self) -> LexerResult<String> {
-        let mut l = vec!['"'];
+        let mut l = vec![self.queue.pop_front().unwrap()];
+        assert_eq!('"', l[0]);
         loop {
-            self.read_next_char();
-            if (self.ch.is_none()) {
+            if (self.queue.is_empty()) {
                 return Err("unexpected end of a string literal".to_string());
             }
-            if (self.ch.unwrap() == '"') {
-                l.push('"');
+            let next = self.queue.pop_front().unwrap();
+            if (next == '"') {
+                l.push(next);
                 break;
             }
-            let c = match self.ch.unwrap() {
+            let c = match next {
                 '\\' => {
-                    self.read_next_char();
-                    if (self.ch.is_none()) {
+                    if (self.queue.is_empty()) {
                         return Err("unexpected end of a string literal".to_string());
                     }
-                    util::parse_escaped_character(self.ch.unwrap())
+                    match util::parse_escaped_character(self.queue.pop_front().unwrap()) {
+                        None => return Err("unknown escape sequence found".to_string()),
+                        Some(c) => c,
+                    }
                 }
                 c => c,
             };
             l.push(c);
         }
-        self.read_next_char();
-        Ok(l.iter().collect())
+        Ok(l.into_iter().collect())
     }
 
     fn read_character(&mut self) -> LexerResult<String> {
-        self.read_next_char();
-        if (self.ch.is_none()) {
+        assert_eq!('\'', self.queue.pop_front().unwrap());
+        if (self.queue.is_empty()) {
             return Err("unexpected end of a character literal".to_string());
-        } else if (self.ch.unwrap() == '\'') {
+        } else if (self.queue[0] == '\'') {
             return Err("character literal is empty".to_string());
         }
-        let ret = match self.ch.unwrap() {
+        let ret = match self.queue.pop_front().unwrap() {
             '\\' => {
-                self.read_next_char();
-                if (self.ch.is_none()) {
+                if (self.queue.is_empty()) {
                     return Err("unexpected end of a character literal".to_string());
                 }
-                format!("'{}'", util::parse_escaped_character(self.ch.unwrap()))
+                format!(
+                    "'{}'",
+                    match util::parse_escaped_character(self.queue.pop_front().unwrap()) {
+                        None => return Err("unknown escape sequence found".to_string()),
+                        Some(c) => c,
+                    }
+                )
             }
             c => format!("'{}'", c),
         };
-        self.read_next_char();
-        if (self.ch.is_none()) {
+        if (self.queue.is_empty()) {
             return Err("unexpected end of a character literal".to_string());
-        }
-        if (self.ch.unwrap() != '\'') {
+        } else if (self.queue[0] != '\'') {
             return Err("character literal can contain only one character".to_string());
         }
-        self.read_next_char();
+        self.queue.pop_front().unwrap();
         Ok(ret)
     }
 
     pub fn get_next_token(&mut self) -> LexerResult<Token> {
-        while (self.ch.is_some() && self.ch.unwrap().is_ascii_whitespace()) {
-            self.read_next_char();
+        //eats whitespace
+        while (!self.queue.is_empty() && self.queue[0].is_ascii_whitespace()) {
+            self.queue.pop_front().unwrap();
         }
-        if (self.ch.is_none()) {
+        if (self.queue.is_empty()) {
             return Ok(Token::Eof);
         }
-        let sequence: String = match self.ch.unwrap() {
+        let sequence: String = match self.queue[0] {
             c if util::is_digit(c) => self.read_number()?,
             c if util::is_identifier(c) => self.read_identifier(), //this includes keywords such as `if`
             '"' => self.read_string()?,
@@ -135,333 +121,355 @@ impl Lexer {
                     ('&', "&&"),
                     ('|', "||"),
                 ]);
+                let cur = self.queue.pop_front().unwrap();
                 let ret = match c {
                     '=' | '!' | '*' | '>' | '<' => {
-                        if let Some(next_ch) = self.peek_next_char() {
-                            let s = m.get(&self.ch.unwrap()).unwrap();
-                            if (next_ch == s.chars().nth(1).unwrap()) {
-                                self.read_next_char();
+                        if (self.queue.is_empty()) {
+                            c.to_string()
+                        } else {
+                            let s = m[&cur];
+                            if (self.queue[0] == s.chars().nth(1).unwrap()) {
+                                self.queue.pop_front().unwrap();
                                 s.to_string()
                             } else {
                                 c.to_string()
                             }
-                        } else {
-                            c.to_string()
                         }
                     }
                     '&' | '|' => {
-                        let next_ch = self.peek_next_char();
-                        if (next_ch.is_none()) {
-                            return Err("unexpected end of input".to_string());
-                        }
-                        let s = m.get(&self.ch.unwrap()).unwrap();
-                        if (next_ch.unwrap() != s.chars().nth(1).unwrap()) {
+                        let s = m[&cur];
+                        if (self.queue.is_empty()) {
                             return Err(format!("`{}` expected but not found", s));
                         }
-                        self.read_next_char();
+                        let next = self.queue.pop_front().unwrap();
+                        if (next != s.chars().nth(1).unwrap()) {
+                            return Err(format!("`{}` expected but not found", s));
+                        }
                         s.to_string()
                     }
                     c => c.to_string(),
                 };
-                self.read_next_char(); //moves to the next position as `read_identifier()` does
                 ret
             }
         };
-        match token::lookup_token(&sequence) {
-            None => unreachable!(),
-            Some(t) => match t {
-                Token::Ident(_) => Ok(Token::Ident(sequence)),
-                Token::Float(_) => {
-                    if (sequence.contains('.')) {
-                        match sequence.parse::<f64>() {
-                            Err(e) => Err(e.to_string()),
-                            Ok(i) => Ok(Token::Float(i)),
-                        }
-                    } else {
-                        match sequence.parse::<i64>() {
-                            Err(e) => Err(e.to_string()),
-                            Ok(i) => Ok(Token::Int(i)),
-                        }
-                    }
-                }
-                Token::String(_) => {
-                    let l: Vec<char> = sequence.chars().collect();
-                    Ok(Token::String(l[1..l.len() - 1].iter().collect()))
-                }
-                Token::Char(_) => Ok(Token::Char(sequence.chars().nth(1).unwrap())),
-                t => Ok(t),
-            },
-        }
+        token::lookup_token(&sequence)
     }
 }
 
 #[cfg(test)]
 mod tests {
 
-    use super::super::token::Token;
-    use super::Lexer;
+    use super::*;
 
     #[test]
-    fn test01() {
+    // #[ignore]
+    fn test_eat_whitespace_and_eof() {
         let input = r#"
-            = + ( ) { } [] , ;
-            * **
-            %
-            > >=
-            < <=
-            &&
-            ||
+            3
         "#;
-
-        let expected = vec![
-            Token::Assign,
-            Token::Plus,
-            Token::Lparen,
-            Token::Rparen,
-            Token::Lbrace,
-            Token::Rbrace,
-            Token::Lbracket,
-            Token::Rbracket,
-            Token::Comma,
-            Token::Semicolon,
-            Token::Asterisk,
-            Token::Power,
-            Token::Percent,
-            Token::Gt,
-            Token::GtEq,
-            Token::Lt,
-            Token::LtEq,
-            Token::And,
-            Token::Or,
-            Token::Eof,
-        ];
-
         let mut lexer = Lexer::new(input);
+        assert_eq!(Ok(Token::Int(3)), lexer.get_next_token());
+        assert_eq!(Ok(Token::Eof), lexer.get_next_token());
+        assert_eq!(Ok(Token::Eof), lexer.get_next_token());
+    }
 
-        for expected_token in expected {
-            let token = lexer.get_next_token();
-            assert!(token.is_ok());
-            assert_eq!(expected_token, token.unwrap());
+    fn test(input: &str, expected: &[LexerResult<Token>]) {
+        let mut lexer = Lexer::new(input);
+        for i in 0..expected.len() {
+            println!("i = {}", i);
+            assert_eq!(expected[i], lexer.get_next_token());
         }
     }
 
     #[test]
-    fn test02() {
+    // #[ignore]
+    fn test_integer() {
         let input = r#"
-            let five = 5;
-            let ten2 = 10;
-            let add = fn(x, y) {
-                x + y;
-            };
-
-            let result = add(five, ten);
-
-            !-/*5;
-            5 < 10 > 5;
-
-            if (5 < 10) {
-                return true;
-            } else {
-                return false;
-            }
-
-            10 ==10;
-            10 != 9;
+            -1 0 1
         "#;
-
         let expected = vec![
-            //1
-            Token::Let,
-            Token::Ident("five".to_string()),
-            Token::Assign,
-            Token::Int(5),
-            Token::Semicolon,
-            //2
-            Token::Let,
-            Token::Ident("ten2".to_string()),
-            Token::Assign,
-            Token::Int(10),
-            Token::Semicolon,
-            //3
-            Token::Let,
-            Token::Ident("add".to_string()),
-            Token::Assign,
-            Token::Function,
-            Token::Lparen,
-            Token::Ident("x".to_string()),
-            Token::Comma,
-            Token::Ident("y".to_string()),
-            Token::Rparen,
-            Token::Lbrace,
-            Token::Ident("x".to_string()),
-            Token::Plus,
-            Token::Ident("y".to_string()),
-            Token::Semicolon,
-            Token::Rbrace,
-            Token::Semicolon,
-            //4
-            Token::Let,
-            Token::Ident("result".to_string()),
-            Token::Assign,
-            Token::Ident("add".to_string()),
-            Token::Lparen,
-            Token::Ident("five".to_string()),
-            Token::Comma,
-            Token::Ident("ten".to_string()),
-            Token::Rparen,
-            Token::Semicolon,
-            //5
-            Token::Invert,
-            Token::Minus,
-            Token::Slash,
-            Token::Asterisk,
-            Token::Int(5),
-            Token::Semicolon,
-            //6
-            Token::Int(5),
-            Token::Lt,
-            Token::Int(10),
-            Token::Gt,
-            Token::Int(5),
-            Token::Semicolon,
-            //7
-            Token::If,
-            Token::Lparen,
-            Token::Int(5),
-            Token::Lt,
-            Token::Int(10),
-            Token::Rparen,
-            Token::Lbrace,
-            Token::Return,
-            Token::True,
-            Token::Semicolon,
-            Token::Rbrace,
-            Token::Else,
-            Token::Lbrace,
-            Token::Return,
-            Token::False,
-            Token::Semicolon,
-            Token::Rbrace,
-            //8
-            Token::Int(10),
-            Token::Eq,
-            Token::Int(10),
-            Token::Semicolon,
-            Token::Int(10),
-            Token::NotEq,
-            Token::Int(9),
-            Token::Semicolon,
-            //9
-            Token::Eof,
-        ];
-
-        let mut lexer = Lexer::new(input);
-
-        for expected_token in expected {
-            let token = lexer.get_next_token();
-            assert!(token.is_ok());
-            assert_eq!(expected_token, token.unwrap());
-        }
-    }
-
-    #[test]
-    fn test03() {
-        let input = vec![
-            //1
-            r#"1"#,
-            r#"1."#,
-            r#"."#,
-            r#".0"#,
-            r#"3.14"#,
-            r#"1.2.3"#,
-            r#"1.2.3.4"#,
-            //2
-            r#"""#,
-            r#""abc"#,
-            r#""""#,
-            r#""a""#,
-            r#""ab""#,
-            r#""a b""#,
-            r#""あ""#,
-            r#""あい""#,
-            r#""\"#,
-            r#""\""#,
-            r#""\n""#,
-            r#""\n\t""#,
-            r#""\n\"""#,
-            //3
-            r#"'"#,
-            r#"'a"#,
-            r#"''"#,
-            r#"'ab'"#,
-            r#"'a'"#,
-            r#"'あ'"#,
-            r#"'\"#,
-            r#"'\'"#,
-            r#"'\\'"#,
-            r#"'\''"#,
-            r#"'\"'"#,
-            r#"'\0'"#,
-            r#"'\n'"#,
-            r#"'\t'"#,
-            r#"'\r'"#,
-            r#"'\p'"#,
-        ];
-
-        let expected = vec![
-            //1
+            Ok(Token::Minus),
             Ok(Token::Int(1)),
-            Ok(Token::Float(1.0)),
-            Err("isolated `.` found".to_string()),
-            Ok(Token::Float(0.0)),
-            Ok(Token::Float(3.14)),
-            Err("two or more".to_string()),
-            Err("two or more".to_string()),
-            //2
-            Err("unexpected end".to_string()),
-            Err("unexpected end".to_string()),
-            Ok(Token::String("".to_string())),
-            Ok(Token::String("a".to_string())),
-            Ok(Token::String("ab".to_string())),
-            Ok(Token::String("a b".to_string())),
-            Ok(Token::String("あ".to_string())),
-            Ok(Token::String("あい".to_string())),
-            Err("unexpected end".to_string()),
-            Err("unexpected end".to_string()),
-            Ok(Token::String("\n".to_string())),
-            Ok(Token::String("\n\t".to_string())),
-            Ok(Token::String("\n\"".to_string())),
-            //3
-            Err("unexpected end".to_string()),
-            Err("unexpected end".to_string()),
-            Err("empty".to_string()),
-            Err("only one".to_string()),
-            Ok(Token::Char('a')),
-            Ok(Token::Char('あ')),
-            Err("unexpected end".to_string()),
-            Err("unexpected end".to_string()),
-            Ok(Token::Char('\\')),
-            Ok(Token::Char('\'')),
-            Ok(Token::Char('"')),
-            Ok(Token::Char('\0')),
-            Ok(Token::Char('\n')),
-            Ok(Token::Char('\t')),
-            Ok(Token::Char('\r')),
-            Ok(Token::Char('p')),
+            Ok(Token::Int(0)),
+            Ok(Token::Int(1)),
+            Ok(Token::Eof),
         ];
+        test(input, &expected);
+    }
 
-        assert_eq!(input.len(), expected.len());
+    #[test]
+    // #[ignore]
+    fn test_float_01() {
+        let input = r#"
+            -3.14 .3 1.
+        "#;
+        let expected = vec![
+            Ok(Token::Minus),
+            Ok(Token::Float(3.14)),
+            Ok(Token::Float(0.3)),
+            Ok(Token::Float(1.0)),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+    }
 
-        for i in 0..input.len() {
-            println!("[{}]", input[i]);
-            let mut lexer = Lexer::new(input[i]);
-            match lexer.get_next_token() {
-                Ok(t) => assert_eq!(expected[i], Ok(t)),
-                Err(t) => match &expected[i] {
-                    Ok(_) => assert!(expected[i].is_err()),
-                    Err(e) => assert!(t.contains(e)),
-                },
-            }
-        }
+    #[test]
+    // #[ignore]
+    fn test_float_02() {
+        let input = r#"
+            . 1.2.3 1.2.3.4
+        "#;
+        let expected = vec![
+            Err("isolated `.` found".to_string()),
+            Err("two or more dots found in a number literal".to_string()),
+            Err("two or more dots found in a number literal".to_string()),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_identifier() {
+        let input = r#"
+            apple bear2 cow3
+        "#;
+        let expected = vec![
+            Ok(Token::Ident("apple".to_string())),
+            Ok(Token::Ident("bear2".to_string())),
+            Ok(Token::Ident("cow3".to_string())),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_string_01() {
+        let input = r#"
+            "" "apple" "apple\\bear\ncow"
+        "#;
+        let expected = vec![
+            Ok(Token::String("".to_string())),
+            Ok(Token::String("apple".to_string())),
+            Ok(Token::String("apple\\bear\ncow".to_string())),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_string_02() {
+        let input = r#"
+            "
+        "#;
+        let expected = vec![
+            Err("unexpected end of a string literal".to_string()),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+
+        let input = r#"
+            "apple
+        "#;
+        let expected = vec![
+            Err("unexpected end of a string literal".to_string()),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+
+        let input = r#"
+            "\p"
+        "#;
+        let expected = vec![Err("unknown escape sequence found".to_string())];
+        test(input, &expected);
+
+        let input = r#"
+            "\"
+        "#;
+        let expected = vec![
+            Err("unexpected end of a string literal".to_string()),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_character_01() {
+        let input = r#"
+            'c' '\n'
+        "#;
+        let expected = vec![Ok(Token::Char('c')), Ok(Token::Char('\n')), Ok(Token::Eof)];
+        test(input, &expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_character_02() {
+        let input = r#"'"#;
+        let expected = vec![
+            Err("unexpected end of a character literal".to_string()),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+
+        let input = r#"
+            ''
+        "#;
+        let expected = vec![Err("character literal is empty".to_string())];
+        test(input, &expected);
+
+        let input = r#"'\"#;
+        let expected = vec![
+            Err("unexpected end of a character literal".to_string()),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+
+        let input = r#"
+            '\p'
+        "#;
+        let expected = vec![Err("unknown escape sequence found".to_string())];
+        test(input, &expected);
+
+        let input = r#"'a"#;
+        let expected = vec![
+            Err("unexpected end of a character literal".to_string()),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+
+        let input = r#"
+            'ab'
+        "#;
+        let expected = vec![Err(
+            "character literal can contain only one character".to_string()
+        )];
+        test(input, &expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_keywords() {
+        let input = r#"
+            true false fn let return if else
+        "#;
+        let expected = vec![
+            Ok(Token::True),
+            Ok(Token::False),
+            Ok(Token::Function),
+            Ok(Token::Let),
+            Ok(Token::Return),
+            Ok(Token::If),
+            Ok(Token::Else),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_operators_01() {
+        let input = r#"
+            = + - * / % ** ! == != < > <= >= && || , ; () { } [ ]
+        "#;
+        let expected = vec![
+            Ok(Token::Assign),
+            Ok(Token::Plus),
+            Ok(Token::Minus),
+            Ok(Token::Asterisk),
+            Ok(Token::Slash),
+            Ok(Token::Percent),
+            Ok(Token::Power),
+            Ok(Token::Invert),
+            Ok(Token::Eq),
+            Ok(Token::NotEq),
+            Ok(Token::Lt),
+            Ok(Token::Gt),
+            Ok(Token::LtEq),
+            Ok(Token::GtEq),
+            Ok(Token::And),
+            Ok(Token::Or),
+            Ok(Token::Comma),
+            Ok(Token::Semicolon),
+            Ok(Token::Lparen),
+            Ok(Token::Rparen),
+            Ok(Token::Lbrace),
+            Ok(Token::Rbrace),
+            Ok(Token::Lbracket),
+            Ok(Token::Rbracket),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+
+        let input = r#"("#;
+        let expected = vec![Ok(Token::Lparen), Ok(Token::Eof)];
+        test(input, &expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_operators_02() {
+        let input = r#"
+            &+
+        "#;
+        let expected = vec![
+            Err("`&&` expected but not found".to_string()),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+
+        let input = r#"&"#;
+        let expected = vec![
+            Err("`&&` expected but not found".to_string()),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+    }
+
+    #[test]
+    fn test_misc_01() {
+        let input = r#"
+            3x 3.y 3.14z
+        "#;
+        let expected = vec![
+            Ok(Token::Int(3)),
+            Ok(Token::Ident("x".to_string())),
+            Ok(Token::Float(3.0)),
+            Ok(Token::Ident("y".to_string())),
+            Ok(Token::Float(3.14)),
+            Ok(Token::Ident("z".to_string())),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
+    }
+
+    #[test]
+    fn test_misc_02() {
+        let input = r#"
+            let add=fn(x,y){x+y;};
+        "#;
+        let expected = vec![
+            Ok(Token::Let),
+            Ok(Token::Ident("add".to_string())),
+            Ok(Token::Assign),
+            Ok(Token::Function),
+            Ok(Token::Lparen),
+            Ok(Token::Ident("x".to_string())),
+            Ok(Token::Comma),
+            Ok(Token::Ident("y".to_string())),
+            Ok(Token::Rparen),
+            Ok(Token::Lbrace),
+            Ok(Token::Ident("x".to_string())),
+            Ok(Token::Plus),
+            Ok(Token::Ident("y".to_string())),
+            Ok(Token::Semicolon),
+            Ok(Token::Rbrace),
+            Ok(Token::Semicolon),
+            Ok(Token::Eof),
+        ];
+        test(input, &expected);
     }
 }
