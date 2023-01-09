@@ -1754,4 +1754,144 @@ mod tests {
         let expected = "function body missing";
         test_error(input, expected);
     }
+
+    #[test]
+    // #[ignore]
+    fn test_precedence_01() {
+        let input = r#"
+            0 || 1 && 2 + -f() * 4 == 5;
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: BinaryExpressionNode {
+                            operator: Or,
+                            left: IntegerLiteralNode {
+                                token: Int(
+                                    0,
+                                ),
+                            },
+                            right: BinaryExpressionNode {
+                                operator: And,
+                                left: IntegerLiteralNode {
+                                    token: Int(
+                                        1,
+                                    ),
+                                },
+                                right: BinaryExpressionNode {
+                                    operator: Eq,
+                                    left: BinaryExpressionNode {
+                                        operator: Plus,
+                                        left: IntegerLiteralNode {
+                                            token: Int(
+                                                2,
+                                            ),
+                                        },
+                                        right: BinaryExpressionNode {
+                                            operator: Asterisk,
+                                            left: UnaryExpressionNode {
+                                                operator: Minus,
+                                                expression: CallExpressionNode {
+                                                    function: IdentifierNode {
+                                                        token: Ident(
+                                                            "f",
+                                                        ),
+                                                    },
+                                                    arguments: [],
+                                                },
+                                            },
+                                            right: IntegerLiteralNode {
+                                                token: Int(
+                                                    4,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    right: IntegerLiteralNode {
+                                        token: Int(
+                                            5,
+                                        ),
+                                    },
+                                },
+                            },
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_precedence_02() {
+        let input = r#"
+            0 || 1 && 2 - !a[3] % 4 < 5;
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: BinaryExpressionNode {
+                            operator: Or,
+                            left: IntegerLiteralNode {
+                                token: Int(
+                                    0,
+                                ),
+                            },
+                            right: BinaryExpressionNode {
+                                operator: And,
+                                left: IntegerLiteralNode {
+                                    token: Int(
+                                        1,
+                                    ),
+                                },
+                                right: BinaryExpressionNode {
+                                    operator: Lt,
+                                    left: BinaryExpressionNode {
+                                        operator: Minus,
+                                        left: IntegerLiteralNode {
+                                            token: Int(
+                                                2,
+                                            ),
+                                        },
+                                        right: BinaryExpressionNode {
+                                            operator: Percent,
+                                            left: UnaryExpressionNode {
+                                                operator: Invert,
+                                                expression: IndexExpressionNode {
+                                                    array: IdentifierNode {
+                                                        token: Ident(
+                                                            "a",
+                                                        ),
+                                                    },
+                                                    index: IntegerLiteralNode {
+                                                        token: Int(
+                                                            3,
+                                                        ),
+                                                    },
+                                                },
+                                            },
+                                            right: IntegerLiteralNode {
+                                                token: Int(
+                                                    4,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    right: IntegerLiteralNode {
+                                        token: Int(
+                                            5,
+                                        ),
+                                    },
+                                },
+                            },
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
 }
