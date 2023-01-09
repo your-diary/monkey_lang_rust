@@ -47,7 +47,7 @@ fn lookup_precedence(token: &Token) -> Precedence {
 
 type ParseResult<T> = Result<T, ParseError>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ParseError {
     Eof,
     Error(String),
@@ -298,8 +298,19 @@ impl Parser {
                 }
                 _ => {
                     elements.push(self.parse_expression(Precedence::Lowest)?);
-                    if (self.expect_next(Token::Comma)) {
-                        self.get_next().unwrap();
+                    match self.peek_next()? {
+                        Token::Rbracket => {
+                            self.get_next().unwrap();
+                            break;
+                        }
+                        Token::Comma => {
+                            self.get_next().unwrap();
+                        }
+                        _ => {
+                            return Err(ParseError::Error(
+                                "`,` expected but not found in array literal".to_string(),
+                            ))
+                        }
                     }
                 }
             }
@@ -369,8 +380,19 @@ impl Parser {
                 }
                 _ => {
                     arguments.push(self.parse_expression(Precedence::Lowest)?);
-                    if (self.expect_next(Token::Comma)) {
-                        self.get_next().unwrap();
+                    match self.peek_next()? {
+                        Token::Rparen => {
+                            self.get_next().unwrap();
+                            break;
+                        }
+                        Token::Comma => {
+                            self.get_next().unwrap();
+                        }
+                        _ => {
+                            return Err(ParseError::Error(
+                                "`,` expected but not found in argument list".to_string(),
+                            ))
+                        }
                     }
                 }
             }
@@ -443,8 +465,19 @@ impl Parser {
                 }
                 Token::Ident(_) => {
                     parameters.push(self.parse_identifier()?);
-                    if (self.expect_next(Token::Comma)) {
-                        self.get_next().unwrap();
+                    match self.peek_next()? {
+                        Token::Rparen => {
+                            self.get_next().unwrap();
+                            break;
+                        }
+                        Token::Comma => {
+                            self.get_next().unwrap();
+                        }
+                        _ => {
+                            return Err(ParseError::Error(
+                                "`,` expected but not found in parameter list".to_string(),
+                            ))
+                        }
                     }
                 }
                 t => {
@@ -470,14 +503,14 @@ impl Parser {
 #[cfg(test)]
 mod tests {
 
-    use super::super::ast::*;
+    use itertools::Itertools;
+
     use super::super::lexer::Lexer;
-    use super::super::token::Token;
-    use super::Parser;
+    use super::*;
 
     fn get_tokens(s: &str) -> Vec<Token> {
         let mut lexer = Lexer::new(s);
-        let mut v = Vec::new();
+        let mut v = vec![];
         loop {
             let token = lexer.get_next_token().unwrap();
             if (token == Token::Eof) {
@@ -489,724 +522,1230 @@ mod tests {
         v
     }
 
-    fn assert_integer_literal(n: &dyn ExpressionNode, i: i64) {
-        let n = n.as_any().downcast_ref::<IntegerLiteralNode>();
-        assert!(n.is_some());
-        let n = n.unwrap();
-        assert_eq!(n.get_value(), i);
-    }
-
-    fn assert_float_literal(n: &dyn ExpressionNode, v: f64) {
-        let n = n.as_any().downcast_ref::<FloatLiteralNode>();
-        assert!(n.is_some());
-        let n = n.unwrap();
-        assert_eq!(n.get_value(), v);
-    }
-
-    fn assert_boolean_literal(n: &dyn ExpressionNode, b: bool) {
-        let n = n.as_any().downcast_ref::<BooleanLiteralNode>();
-        assert!(n.is_some());
-        let n = n.unwrap();
-        assert_eq!(n.get_value(), b);
-    }
-
-    fn assert_character_literal(n: &dyn ExpressionNode, c: char) {
-        let n = n.as_any().downcast_ref::<CharacterLiteralNode>();
-        assert!(n.is_some());
-        let n = n.unwrap();
-        assert_eq!(n.get_value(), c);
-    }
-
-    fn assert_string_literal(n: &dyn ExpressionNode, s: &str) {
-        let n = n.as_any().downcast_ref::<StringLiteralNode>();
-        assert!(n.is_some());
-        let n = n.unwrap();
-        assert_eq!(n.get_value(), s);
-    }
-
-    fn assert_array_literal(n: &dyn ExpressionNode, v: &Vec<i64>) {
-        let n = n.as_any().downcast_ref::<ArrayLiteralNode>();
-        assert!(n.is_some());
-        let n = n.unwrap();
-        assert_eq!(v.len(), n.elements().len());
-        for i in 0..v.len() {
-            let e = n.elements()[i]
-                .as_any()
-                .downcast_ref::<IntegerLiteralNode>();
-            assert!(e.is_some());
-            let e = e.unwrap();
-            assert_eq!(v[i], e.get_value());
+    fn test(input: &str, expected: &str) {
+        let mut parser = Parser::new(get_tokens(input));
+        let root = parser.parse();
+        if (root.is_err()) {
+            println!("{:#?}", root);
+        }
+        assert!(root.is_ok());
+        let root = root.unwrap();
+        println!("{:#?}", root);
+        if (expected.split_whitespace().join("")
+            != format!("{:#?}", root).split_whitespace().join(""))
+        {
+            assert_eq!(
+                expected.split_whitespace().join(" "),
+                format!("{:#?}", root).split_whitespace().join(" ")
+            );
         }
     }
 
-    fn assert_identifier(n: &dyn ExpressionNode, s: &str) {
-        let n = n.as_any().downcast_ref::<IdentifierNode>();
-        assert!(n.is_some());
-        let n = n.unwrap();
-        assert_eq!(n.get_name(), s);
-    }
-
-    fn assert_unary_expression(n: &dyn ExpressionNode, op: &Token, i: i64) {
-        let n = n.as_any().downcast_ref::<UnaryExpressionNode>();
-        assert!(n.is_some());
-        let n = n.unwrap();
-        assert_eq!(n.operator(), op);
-        let e = n.expression().as_any().downcast_ref::<IntegerLiteralNode>();
-        assert!(e.is_some());
-        let e = e.unwrap();
-        assert_eq!(e.get_value(), i);
-    }
-
-    fn assert_binary_expression(n: &dyn ExpressionNode, op: &Token, i: i64, j: i64) {
-        let n = n.as_any().downcast_ref::<BinaryExpressionNode>();
-        assert!(n.is_some());
-        let n = n.unwrap();
-        assert_eq!(n.operator(), op);
-
-        let e = n.left().as_any().downcast_ref::<IntegerLiteralNode>();
-        assert!(e.is_some());
-        let e = e.unwrap();
-        assert_eq!(e.get_value(), i);
-
-        let e = n.right().as_any().downcast_ref::<IntegerLiteralNode>();
-        assert!(e.is_some());
-        let e = e.unwrap();
-        assert_eq!(e.get_value(), j);
-    }
-
-    fn assert_binary_expression_2(n: &dyn ExpressionNode, op: &Token, s1: &str, s2: &str) {
-        let n = n.as_any().downcast_ref::<BinaryExpressionNode>();
-        assert!(n.is_some());
-        let n = n.unwrap();
-        assert_eq!(n.operator(), op);
-
-        let e = n.left().as_any().downcast_ref::<IdentifierNode>();
-        assert!(e.is_some());
-        let e = e.unwrap();
-        assert_eq!(e.get_name(), s1);
-
-        let e = n.right().as_any().downcast_ref::<IdentifierNode>();
-        assert!(e.is_some());
-        let e = e.unwrap();
-        assert_eq!(e.get_name(), s2);
+    fn test_error(input: &str, expected: &str) {
+        let mut parser = Parser::new(get_tokens(input));
+        let root = parser.parse();
+        if (root.is_ok()) {
+            println!("{:#?}", root.as_ref().unwrap());
+        }
+        assert!(root.is_err());
+        match root {
+            Ok(_) => unreachable!(),
+            Err(e) => assert_eq!(e, ParseError::Error(expected.to_string())),
+        }
     }
 
     #[test]
     // #[ignore]
-    fn test01() {
-        let input = r#"
-            let x = 5;
-            let ab = 10;
+    fn test_empty_input() {
+        let input = r#""#;
+        let expected = r#"
+            RootNode {
+                statements: [],
+            }
         "#;
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(2, root.statements().len());
-
-        let names = vec!["x", "ab"];
-        let values = vec![5, 10];
-
-        for i in 0..root.statements().len() {
-            let s = root.statements()[i]
-                .as_any()
-                .downcast_ref::<LetStatementNode>();
-            assert!(s.is_some());
-            let s = s.unwrap();
-            assert_identifier(s.identifier(), names[i]);
-            assert_integer_literal(s.expression(), values[i]);
-        }
+        test(input, expected);
     }
 
     #[test]
     // #[ignore]
-    fn test02() {
+    fn test_single_statement() {
         let input = r#"
-                    return 5;
-                    return 10;
-                "#;
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(2, root.statements().len());
-
-        let values = vec![5, 10];
-
-        for i in 0..root.statements().len() {
-            let s = root.statements()[i]
-                .as_any()
-                .downcast_ref::<ReturnStatementNode>();
-            assert!(s.is_some());
-            let s = s.unwrap();
-            assert!(s.expression().is_some());
-            assert_integer_literal(s.expression().as_ref().unwrap().as_ref(), values[i]);
-        }
-    }
-
-    #[test]
-    // #[ignore]
-    fn test03() {
-        let input = r#"
-                foo;;
-                bar;
-            "#;
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(2, root.statements().len());
-
-        let names = vec!["foo", "bar"];
-
-        for i in 0..root.statements().len() {
-            let s = root.statements()[i]
-                .as_any()
-                .downcast_ref::<ExpressionStatementNode>();
-            assert!(s.is_some());
-            let s = s.unwrap();
-            assert_identifier(s.expression(), names[i]);
-        }
-    }
-
-    #[test]
-    // #[ignore]
-    fn test04() {
-        let input = r#"
-                5;
-                3.14;
-            "#;
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(2, root.statements().len());
-
-        let s = root.statements()[0]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-        assert_integer_literal(s.expression(), 5);
-
-        let s = root.statements()[1]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-        assert_float_literal(s.expression(), 3.14);
-    }
-
-    #[test]
-    // #[ignore]
-    fn test05() {
-        let input = r#"
-                true;
-                false;
-            "#;
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let l = vec![true, false];
-
-        let root = parser.parse();
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(2, root.statements().len());
-
-        for i in 0..root.statements().len() {
-            let s = root.statements()[i]
-                .as_any()
-                .downcast_ref::<ExpressionStatementNode>();
-            assert!(s.is_some());
-            let s = s.unwrap();
-            assert_boolean_literal(s.expression(), l[i]);
-        }
-    }
-
-    #[test]
-    // #[ignore]
-    fn test06() {
-        let input = r#"
-                'あ';
-                "こんにちは";
-            "#;
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(2, root.statements().len());
-
-        let s = root.statements()[0]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-        assert_character_literal(s.expression(), 'あ');
-
-        let s = root.statements()[1]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-        assert_string_literal(s.expression(), "こんにちは");
-    }
-
-    #[test]
-    // #[ignore]
-    fn test07() {
-        let input = r#"
-                    !5;
-                    -15;
-                "#;
-
-        let operators = vec![Token::Invert, Token::Minus];
-        let values = vec![5, 15];
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(2, root.statements().len());
-
-        for i in 0..root.statements().len() {
-            let s = root.statements()[i]
-                .as_any()
-                .downcast_ref::<ExpressionStatementNode>();
-            assert!(s.is_some());
-            let s = s.unwrap();
-            assert_unary_expression(s.expression(), &operators[i], values[i]);
-        }
-    }
-
-    #[test]
-    // #[ignore]
-    fn test08() {
-        let input = r#"
-                    1 + 2;
-                    1 - 2;
-                    1 * 2;
-                    1 / 2;
-                    1 % 2;
-                    1 ** 2;
-                    1 > 2;
-                    1 < 2;
-                    1 >= 2;
-                    1 <= 2;
-                    1 == 2;
-                    1 != 2;
-                    1 && 2;
-                    1 || 2;
-                "#;
-
-        let operators = vec![
-            Token::Plus,
-            Token::Minus,
-            Token::Asterisk,
-            Token::Slash,
-            Token::Percent,
-            Token::Power,
-            Token::Gt,
-            Token::Lt,
-            Token::GtEq,
-            Token::LtEq,
-            Token::Eq,
-            Token::NotEq,
-            Token::And,
-            Token::Or,
-        ];
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(operators.len(), root.statements().len());
-
-        for i in 0..root.statements().len() {
-            let s = root.statements()[i]
-                .as_any()
-                .downcast_ref::<ExpressionStatementNode>();
-            assert!(s.is_some());
-            let s = s.unwrap();
-            assert_binary_expression(s.expression(), &operators[i], 1, 2);
-        }
-    }
-
-    #[test]
-    // #[ignore]
-    fn test09() {
-        let input = r#"
-                    1 + 2 * 3;
-                "#;
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(1, root.statements().len());
-
-        let s = root.statements()[0]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-        let v = s
-            .expression()
-            .as_any()
-            .downcast_ref::<BinaryExpressionNode>();
-        assert!(v.is_some());
-        let v = v.unwrap();
-        assert_eq!(v.operator(), &Token::Plus);
-        assert_integer_literal(v.left(), 1);
-        assert_binary_expression(v.right(), &Token::Asterisk, 2, 3);
-    }
-
-    #[test]
-    // #[ignore]
-    fn test10() {
-        let input = r#"
-                    (1 + 2) * 3;
-                "#;
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(1, root.statements().len());
-
-        let s = root.statements()[0]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-        let v = s
-            .expression()
-            .as_any()
-            .downcast_ref::<BinaryExpressionNode>();
-        assert!(v.is_some());
-        let v = v.unwrap();
-        assert_eq!(v.operator(), &Token::Asterisk);
-        assert_binary_expression(v.left(), &Token::Plus, 1, 2);
-        assert_integer_literal(v.right(), 3);
-    }
-
-    #[test]
-    // #[ignore]
-    fn test11() {
-        let input = r#"
-                    if (x < y) { x }; 5;
-                "#;
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(2, root.statements().len());
-
-        let s = root.statements()[0]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-
-        let v = s.expression().as_any().downcast_ref::<IfExpressionNode>();
-        assert!(v.is_some());
-        let v = v.unwrap();
-
-        assert_binary_expression_2(v.condition(), &Token::Lt, "x", "y");
-
-        assert!(v.else_value().is_none());
-
-        let if_value = v.if_value();
-        let l = if_value.statements();
-        assert_eq!(1, l.len());
-        let n = l[0].as_any().downcast_ref::<ExpressionStatementNode>();
-        assert!(n.is_some());
-        let n = n.unwrap();
-        assert_identifier(n.expression(), "x");
-
-        let s = root.statements()[1]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-        assert_integer_literal(s.expression(), 5);
-    }
-
-    #[test]
-    // #[ignore]
-    fn test12() {
-        let input = r#"
-                        if (x != y) {
-                            x
-                        } else {
-                            3;
-                            4;
-                        };
-                    "#;
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(1, root.statements().len());
-
-        let s = root.statements()[0]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-
-        let v = s.expression().as_any().downcast_ref::<IfExpressionNode>();
-        assert!(v.is_some());
-        let v = v.unwrap();
-
-        assert_binary_expression_2(v.condition(), &Token::NotEq, "x", "y");
-
-        let if_value = v.if_value();
-        let l = if_value.statements();
-        assert_eq!(1, l.len());
-        let n = l[0].as_any().downcast_ref::<ExpressionStatementNode>();
-        assert!(n.is_some());
-        let n = n.unwrap();
-        assert_identifier(n.expression(), "x");
-
-        match v.else_value() {
-            None => assert!(v.else_value().is_some()),
-            Some(else_value) => {
-                let l = else_value.statements();
-                assert_eq!(2, l.len());
-
-                let n = l[0].as_any().downcast_ref::<ExpressionStatementNode>();
-                assert!(n.is_some());
-                let n = n.unwrap();
-                assert_integer_literal(n.expression(), 3);
-
-                let n = l[1].as_any().downcast_ref::<ExpressionStatementNode>();
-                assert!(n.is_some());
-                let n = n.unwrap();
-                assert_integer_literal(n.expression(), 4);
+            3
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: IntegerLiteralNode {
+                            token: Int(
+                                3,
+                            ),
+                        },
+                    },
+                ],
             }
-        }
+        "#;
+        test(input, expected);
     }
 
     #[test]
     // #[ignore]
-    fn test13() {
+    fn test_two_statements() {
         let input = r#"
-                    fn () {
-                        return;
-                    }
-                    fn (x) {
-                        return x + y;
-                    }
-                    fn (x, y,) {
-                        return x + y;
-                    }
-                "#;
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        println!("{:?}", root);
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(3, root.statements().len());
-
-        for i in 0..root.statements().len() {
-            let s = root.statements()[i]
-                .as_any()
-                .downcast_ref::<ExpressionStatementNode>();
-            assert!(s.is_some());
-            let s = s.unwrap();
-
-            let v = s
-                .expression()
-                .as_any()
-                .downcast_ref::<FunctionLiteralNode>();
-            assert!(v.is_some());
-            let v = v.unwrap();
-
-            assert_eq!(i, v.parameters().len());
-            if (i >= 1) {
-                assert_identifier(&v.parameters()[0], "x");
+            3; ; 4
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: IntegerLiteralNode {
+                            token: Int(
+                                3,
+                            ),
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: IntegerLiteralNode {
+                            token: Int(
+                                4,
+                            ),
+                        },
+                    },
+                ],
             }
-            if (i == 2) {
-                assert_identifier(&v.parameters()[1], "y");
-            }
-
-            let s = v.body();
-            assert_eq!(1, s.statements().len());
-            let s = v.body().statements()[0]
-                .as_any()
-                .downcast_ref::<ReturnStatementNode>();
-            assert!(s.is_some());
-            let s = s.unwrap();
-            if (i == 0) {
-                assert!(s.expression().is_none());
-            } else {
-                assert!(s.expression().is_some());
-                assert_binary_expression_2(
-                    s.expression().as_ref().unwrap().as_ref(),
-                    &Token::Plus,
-                    "x",
-                    "y",
-                );
-            }
-        }
+        "#;
+        test(input, expected);
     }
 
     #[test]
     // #[ignore]
-    fn test14() {
+    fn test_error_propagation_01() {
         let input = r#"
-            f()
-            f(a)
-            f(a, 3 + 4,)
-                "#;
-
-        let mut parser = Parser::new(get_tokens(input));
-
-        let root = parser.parse();
-        println!("{:?}", root);
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
-
-        assert_eq!(3, root.statements().len());
-
-        for i in 0..root.statements().len() {
-            let s = root.statements()[i]
-                .as_any()
-                .downcast_ref::<ExpressionStatementNode>();
-            assert!(s.is_some());
-            let s = s.unwrap();
-
-            let v = s.expression().as_any().downcast_ref::<CallExpressionNode>();
-            assert!(v.is_some());
-            let v = v.unwrap();
-            assert_identifier(v.function(), "f");
-
-            assert_eq!(i, v.arguments().len());
-            if (i >= 1) {
-                assert_identifier(v.arguments()[0].as_ref(), "a");
-            }
-            if (i == 2) {
-                assert_binary_expression(v.arguments()[1].as_ref(), &Token::Plus, 3, 4);
-            }
-        }
+            let
+        "#;
+        let expected = "identifier missing or reserved keyword used after `let`";
+        test_error(input, expected);
     }
 
     #[test]
     // #[ignore]
-    fn test15() {
+    fn test_error_propagation_02() {
         let input = r#"
-            [];
-            [1];
-            [1,2,];
-            [1,][0];
-            a[8];
-                "#;
+            3 +
+        "#;
+        let expected = "unexpected eof in the middle of a statement";
+        test_error(input, expected);
+    }
 
-        let mut parser = Parser::new(get_tokens(input));
+    #[test]
+    // #[ignore]
+    fn test_block_expression_01() {
+        let input = r#"
+            {} { 3 } { 3; 3 + 4; }
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: BlockExpressionNode {
+                            statements: [],
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: BlockExpressionNode {
+                            statements: [
+                                ExpressionStatementNode {
+                                    expression: IntegerLiteralNode {
+                                        token: Int(
+                                            3,
+                                        ),
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: BlockExpressionNode {
+                            statements: [
+                                ExpressionStatementNode {
+                                    expression: IntegerLiteralNode {
+                                        token: Int(
+                                            3,
+                                        ),
+                                    },
+                                },
+                                ExpressionStatementNode {
+                                    expression: BinaryExpressionNode {
+                                        operator: Plus,
+                                        left: IntegerLiteralNode {
+                                            token: Int(
+                                                3,
+                                            ),
+                                        },
+                                        right: IntegerLiteralNode {
+                                            token: Int(
+                                                4,
+                                            ),
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
 
-        let root = parser.parse();
-        println!("{:?}", root);
-        assert!(root.is_ok());
-        let root = root.unwrap();
-        println!("{:#?}", root);
+    #[test]
+    // #[ignore]
+    fn test_let_statement_01() {
+        let input = r#"
+            let a = 1;
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    LetStatementNode {
+                        identifier: IdentifierNode {
+                            token: Ident(
+                                "a",
+                            ),
+                        },
+                        expression: IntegerLiteralNode {
+                            token: Int(
+                                1,
+                            ),
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
 
-        assert_eq!(5, root.statements().len());
+    #[test]
+    // #[ignore]
+    fn test_let_statement_02() {
+        let input = r#"
+            let = 1;
+        "#;
+        let expected = "identifier missing or reserved keyword used after `let`";
+        test_error(input, expected);
 
-        let s = root.statements()[0]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-        assert_array_literal(s.expression(), &vec![]);
+        let input = r#"
+            let a * 1;
+        "#;
+        let expected = "`=` missing in `let`";
+        test_error(input, expected);
 
-        let s = root.statements()[1]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-        assert_array_literal(s.expression(), &vec![1]);
+        let input = r#"
+            let a = ;
+        "#;
+        let expected = "unexpected start of expression: Semicolon";
+        test_error(input, expected);
 
-        let s = root.statements()[2]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-        assert_array_literal(s.expression(), &vec![1, 2]);
+        let input = r#"
+            let a = 3
+        "#;
+        let expected = "`;` missing in `let`";
+        test_error(input, expected);
+    }
 
-        let s = root.statements()[3]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s
-            .unwrap()
-            .expression()
-            .as_any()
-            .downcast_ref::<IndexExpressionNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-        assert_integer_literal(s.index(), 0);
-        assert_array_literal(s.array(), &vec![1]);
+    #[test]
+    // #[ignore]
+    fn test_return_statement_01() {
+        let input = r#"
+            return;
+            return 3;
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ReturnStatementNode {
+                        expression: None,
+                    },
+                    ReturnStatementNode {
+                        expression: Some(
+                            IntegerLiteralNode {
+                                token: Int(
+                                    3,
+                                ),
+                            },
+                        ),
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
 
-        let s = root.statements()[4]
-            .as_any()
-            .downcast_ref::<ExpressionStatementNode>();
-        assert!(s.is_some());
-        let s = s
-            .unwrap()
-            .expression()
-            .as_any()
-            .downcast_ref::<IndexExpressionNode>();
-        assert!(s.is_some());
-        let s = s.unwrap();
-        assert_integer_literal(s.index(), 8);
-        assert_identifier(s.array(), "a");
+    #[test]
+    // #[ignore]
+    fn test_return_statement_02() {
+        let input = r#"
+            return 3
+        "#;
+        let expected = "`;` missing in `return`";
+        test_error(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_expression_statement_01() {
+        let input = r#"
+            3; 4
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: IntegerLiteralNode {
+                            token: Int(
+                                3,
+                            ),
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: IntegerLiteralNode {
+                            token: Int(
+                                4,
+                            ),
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_expression_01() {
+        let input = r#"
+            1 + 2 * 3; 1 * 2 + 3;
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: BinaryExpressionNode {
+                            operator: Plus,
+                            left: IntegerLiteralNode {
+                                token: Int(
+                                    1,
+                                ),
+                            },
+                            right: BinaryExpressionNode {
+                                operator: Asterisk,
+                                left: IntegerLiteralNode {
+                                    token: Int(
+                                        2,
+                                    ),
+                                },
+                                right: IntegerLiteralNode {
+                                    token: Int(
+                                        3,
+                                    ),
+                                },
+                            },
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: BinaryExpressionNode {
+                            operator: Plus,
+                            left: BinaryExpressionNode {
+                                operator: Asterisk,
+                                left: IntegerLiteralNode {
+                                    token: Int(
+                                        1,
+                                    ),
+                                },
+                                right: IntegerLiteralNode {
+                                    token: Int(
+                                        2,
+                                    ),
+                                },
+                            },
+                            right: IntegerLiteralNode {
+                                token: Int(
+                                    3,
+                                ),
+                            },
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_grouped_expression_01() {
+        let input = r#"
+            3 * (1 + 2)
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: BinaryExpressionNode {
+                            operator: Asterisk,
+                            left: IntegerLiteralNode {
+                                token: Int(
+                                    3,
+                                ),
+                            },
+                            right: BinaryExpressionNode {
+                                operator: Plus,
+                                left: IntegerLiteralNode {
+                                    token: Int(
+                                        1,
+                                    ),
+                                },
+                                right: IntegerLiteralNode {
+                                    token: Int(
+                                        2,
+                                    ),
+                                },
+                            },
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_grouped_expression_02() {
+        let input = r#"
+            (3 + 4
+        "#;
+        let expected = "`)` missing in grouped expression";
+        test_error(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_identifier_01() {
+        let input = r#"
+            a
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: IdentifierNode {
+                            token: Ident(
+                                "a",
+                            ),
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_integer_literal_01() {
+        let input = r#"
+            -1; 0
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: UnaryExpressionNode {
+                            operator: Minus,
+                            expression: IntegerLiteralNode {
+                                token: Int(
+                                    1,
+                                ),
+                            },
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: IntegerLiteralNode {
+                            token: Int(
+                                0,
+                            ),
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_float_literal_01() {
+        let input = r#"
+            -1.; .0; 3.14
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: UnaryExpressionNode {
+                            operator: Minus,
+                            expression: FloatLiteralNode {
+                                token: Float(
+                                    1.0,
+                                ),
+                            },
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: FloatLiteralNode {
+                            token: Float(
+                                0.0,
+                            ),
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: FloatLiteralNode {
+                            token: Float(
+                                3.14,
+                            ),
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_boolean_literal_01() {
+        let input = r#"
+            true; false;
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: BooleanLiteralNode {
+                            token: True,
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: BooleanLiteralNode {
+                            token: False,
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_character_literal_01() {
+        let input = r#"
+            'a' '\0'
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: CharacterLiteralNode {
+                            token: Char(
+                                'a',
+                            ),
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: CharacterLiteralNode {
+                            token: Char(
+                                '\0',
+                            ),
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_string_literal_01() {
+        let input = r#"
+            "" "abc\ndef"
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: StringLiteralNode {
+                            token: String(
+                                "",
+                            ),
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: StringLiteralNode {
+                            token: String(
+                                "abc\ndef",
+                            ),
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_array_literal_01() {
+        let input = r#"
+            []; [a]; [a,]; [a, b]; [a, b, c]
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: ArrayLiteralNode {
+                            elements: [],
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: ArrayLiteralNode {
+                            elements: [
+                                IdentifierNode {
+                                    token: Ident(
+                                        "a",
+                                    ),
+                                },
+                            ],
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: ArrayLiteralNode {
+                            elements: [
+                                IdentifierNode {
+                                    token: Ident(
+                                        "a",
+                                    ),
+                                },
+                            ],
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: ArrayLiteralNode {
+                            elements: [
+                                IdentifierNode {
+                                    token: Ident(
+                                        "a",
+                                    ),
+                                },
+                                IdentifierNode {
+                                    token: Ident(
+                                        "b",
+                                    ),
+                                },
+                            ],
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: ArrayLiteralNode {
+                            elements: [
+                                IdentifierNode {
+                                    token: Ident(
+                                        "a",
+                                    ),
+                                },
+                                IdentifierNode {
+                                    token: Ident(
+                                        "b",
+                                    ),
+                                },
+                                IdentifierNode {
+                                    token: Ident(
+                                        "c",
+                                    ),
+                                },
+                            ],
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_array_literal_02() {
+        let input = r#"
+            [1 2 3]
+        "#;
+        let expected = "`,` expected but not found in array literal";
+        test_error(input, expected);
+
+        let input = r#"
+            [,]
+        "#;
+        let expected = "unexpected start of expression: Comma";
+        test_error(input, expected);
+
+        let input = r#"
+            [a,,b]
+        "#;
+        let expected = "unexpected start of expression: Comma";
+        test_error(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_unary_expression_01() {
+        let input = r#"
+            !3
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: UnaryExpressionNode {
+                            operator: Invert,
+                            expression: IntegerLiteralNode {
+                                token: Int(
+                                    3,
+                                ),
+                            },
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_binary_expression_01() {
+        let input = r#"
+            1 + 2
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: BinaryExpressionNode {
+                            operator: Plus,
+                            left: IntegerLiteralNode {
+                                token: Int(
+                                    1,
+                                ),
+                            },
+                            right: IntegerLiteralNode {
+                                token: Int(
+                                    2,
+                                ),
+                            },
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_index_expression_01() {
+        let input = r#"
+            a[0]; [1, 2, 3][1]
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: IndexExpressionNode {
+                            array: IdentifierNode {
+                                token: Ident(
+                                    "a",
+                                ),
+                            },
+                            index: IntegerLiteralNode {
+                                token: Int(
+                                    0,
+                                ),
+                            },
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: IndexExpressionNode {
+                            array: ArrayLiteralNode {
+                                elements: [
+                                    IntegerLiteralNode {
+                                        token: Int(
+                                            1,
+                                        ),
+                                    },
+                                    IntegerLiteralNode {
+                                        token: Int(
+                                            2,
+                                        ),
+                                    },
+                                    IntegerLiteralNode {
+                                        token: Int(
+                                            3,
+                                        ),
+                                    },
+                                ],
+                            },
+                            index: IntegerLiteralNode {
+                                token: Int(
+                                    1,
+                                ),
+                            },
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_index_expression_02() {
+        let input = r#"
+            a[]
+        "#;
+        let expected = "empty index in array index expression";
+        test_error(input, expected);
+
+        let input = r#"
+            a[3 + 2
+        "#;
+        let expected = "`]` missing in array index expression";
+        test_error(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_call_expression_01() {
+        let input = r#"
+            f(); f(a); f(a,); f(a, b); f(a, b, c)
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: CallExpressionNode {
+                            function: IdentifierNode {
+                                token: Ident(
+                                    "f",
+                                ),
+                            },
+                            arguments: [],
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: CallExpressionNode {
+                            function: IdentifierNode {
+                                token: Ident(
+                                    "f",
+                                ),
+                            },
+                            arguments: [
+                                IdentifierNode {
+                                    token: Ident(
+                                        "a",
+                                    ),
+                                },
+                            ],
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: CallExpressionNode {
+                            function: IdentifierNode {
+                                token: Ident(
+                                    "f",
+                                ),
+                            },
+                            arguments: [
+                                IdentifierNode {
+                                    token: Ident(
+                                        "a",
+                                    ),
+                                },
+                            ],
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: CallExpressionNode {
+                            function: IdentifierNode {
+                                token: Ident(
+                                    "f",
+                                ),
+                            },
+                            arguments: [
+                                IdentifierNode {
+                                    token: Ident(
+                                        "a",
+                                    ),
+                                },
+                                IdentifierNode {
+                                    token: Ident(
+                                        "b",
+                                    ),
+                                },
+                            ],
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: CallExpressionNode {
+                            function: IdentifierNode {
+                                token: Ident(
+                                    "f",
+                                ),
+                            },
+                            arguments: [
+                                IdentifierNode {
+                                    token: Ident(
+                                        "a",
+                                    ),
+                                },
+                                IdentifierNode {
+                                    token: Ident(
+                                        "b",
+                                    ),
+                                },
+                                IdentifierNode {
+                                    token: Ident(
+                                        "c",
+                                    ),
+                                },
+                            ],
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_call_expression_02() {
+        let input = r#"
+            f(1 2 3)
+        "#;
+        let expected = "`,` expected but not found in argument list";
+        test_error(input, expected);
+
+        let input = r#"
+            f(,)
+        "#;
+        let expected = "unexpected start of expression: Comma";
+        test_error(input, expected);
+
+        let input = r#"
+            f(a,,b)
+        "#;
+        let expected = "unexpected start of expression: Comma";
+        test_error(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_if_expression_01() {
+        let input = r#"
+            if (x) { y };
+            if (x) { y; z; } else { w }
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: IfExpressionNode {
+                            condition: IdentifierNode {
+                                token: Ident(
+                                    "x",
+                                ),
+                            },
+                            if_value: BlockExpressionNode {
+                                statements: [
+                                    ExpressionStatementNode {
+                                        expression: IdentifierNode {
+                                            token: Ident(
+                                                "y",
+                                            ),
+                                        },
+                                    },
+                                ],
+                            },
+                            else_value: None,
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: IfExpressionNode {
+                            condition: IdentifierNode {
+                                token: Ident(
+                                    "x",
+                                ),
+                            },
+                            if_value: BlockExpressionNode {
+                                statements: [
+                                    ExpressionStatementNode {
+                                        expression: IdentifierNode {
+                                            token: Ident(
+                                                "y",
+                                            ),
+                                        },
+                                    },
+                                    ExpressionStatementNode {
+                                        expression: IdentifierNode {
+                                            token: Ident(
+                                                "z",
+                                            ),
+                                        },
+                                    },
+                                ],
+                            },
+                            else_value: Some(
+                                BlockExpressionNode {
+                                    statements: [
+                                        ExpressionStatementNode {
+                                            expression: IdentifierNode {
+                                                token: Ident(
+                                                    "w",
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                            ),
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_if_expression_02() {
+        let input = r#"
+            if true { 3 }
+        "#;
+        let expected = "`(` missing in `if` condition";
+        test_error(input, expected);
+
+        let input = r#"
+            if (true { 3 }
+        "#;
+        let expected = "`)` missing in `if` condition";
+        test_error(input, expected);
+
+        let input = r#"
+            if (true) 3 }
+        "#;
+        let expected = "`{` missing in `if` block";
+        test_error(input, expected);
+
+        let input = r#"
+            if (true) { 3
+        "#;
+        let expected = "unexpected eof in the middle of a statement";
+        test_error(input, expected);
+
+        let input = r#"
+            if (true) { 3 } else 4
+        "#;
+        let expected = "`{` missing in `else` block";
+        test_error(input, expected);
+
+        let input = r#"
+            if (true) { 3 } else { 4
+        "#;
+        let expected = "unexpected eof in the middle of a statement";
+        test_error(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_function_literal_01() {
+        let input = r#"
+            fn() { }; fn(a) { 1 }; fn(a,) { 1; 2 }; fn(a, b) { 1; 2; }; fn(a, b, c) { }
+        "#;
+        let expected = r#"
+            RootNode {
+                statements: [
+                    ExpressionStatementNode {
+                        expression: FunctionLiteralNode {
+                            parameters: [],
+                            body: BlockExpressionNode {
+                                statements: [],
+                            },
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: FunctionLiteralNode {
+                            parameters: [
+                                IdentifierNode {
+                                    token: Ident(
+                                        "a",
+                                    ),
+                                },
+                            ],
+                            body: BlockExpressionNode {
+                                statements: [
+                                    ExpressionStatementNode {
+                                        expression: IntegerLiteralNode {
+                                            token: Int(
+                                                1,
+                                            ),
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: FunctionLiteralNode {
+                            parameters: [
+                                IdentifierNode {
+                                    token: Ident(
+                                        "a",
+                                    ),
+                                },
+                            ],
+                            body: BlockExpressionNode {
+                                statements: [
+                                    ExpressionStatementNode {
+                                        expression: IntegerLiteralNode {
+                                            token: Int(
+                                                1,
+                                            ),
+                                        },
+                                    },
+                                    ExpressionStatementNode {
+                                        expression: IntegerLiteralNode {
+                                            token: Int(
+                                                2,
+                                            ),
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: FunctionLiteralNode {
+                            parameters: [
+                                IdentifierNode {
+                                    token: Ident(
+                                        "a",
+                                    ),
+                                },
+                                IdentifierNode {
+                                    token: Ident(
+                                        "b",
+                                    ),
+                                },
+                            ],
+                            body: BlockExpressionNode {
+                                statements: [
+                                    ExpressionStatementNode {
+                                        expression: IntegerLiteralNode {
+                                            token: Int(
+                                                1,
+                                            ),
+                                        },
+                                    },
+                                    ExpressionStatementNode {
+                                        expression: IntegerLiteralNode {
+                                            token: Int(
+                                                2,
+                                            ),
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    ExpressionStatementNode {
+                        expression: FunctionLiteralNode {
+                            parameters: [
+                                IdentifierNode {
+                                    token: Ident(
+                                        "a",
+                                    ),
+                                },
+                                IdentifierNode {
+                                    token: Ident(
+                                        "b",
+                                    ),
+                                },
+                                IdentifierNode {
+                                    token: Ident(
+                                        "c",
+                                    ),
+                                },
+                            ],
+                            body: BlockExpressionNode {
+                                statements: [],
+                            },
+                        },
+                    },
+                ],
+            }
+        "#;
+        test(input, expected);
+    }
+
+    #[test]
+    // #[ignore]
+    fn test_function_literal_02() {
+        let input = r#"
+            fn (a b c) { 1 }
+        "#;
+        let expected = "`,` expected but not found in parameter list";
+        test_error(input, expected);
+
+        let input = r#"
+            fn (,) { 1 }
+        "#;
+        let expected = "expected identifier but found `Comma` in function parameter list";
+        test_error(input, expected);
+
+        let input = r#"
+            fn (a,,b) { 1 }
+        "#;
+        let expected = "expected identifier but found `Comma` in function parameter list";
+        test_error(input, expected);
+
+        let input = r#"
+            fn a, b, c) { 1 }
+        "#;
+        let expected = "`(` missing in function parameter list";
+        test_error(input, expected);
+
+        let input = r#"
+            fn (a, b, c { 1 }
+        "#;
+        let expected = "`,` expected but not found in parameter list";
+        test_error(input, expected);
+
+        let input = r#"
+            fn (a, b, c) 1
+        "#;
+        let expected = "function body missing";
+        test_error(input, expected);
     }
 }
