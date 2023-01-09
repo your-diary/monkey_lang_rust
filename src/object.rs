@@ -21,6 +21,7 @@ impl Object for Null {
     }
 }
 impl Null {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {}
     }
@@ -28,11 +29,6 @@ impl Null {
 impl Display for Null {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "null")
-    }
-}
-impl Default for Null {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

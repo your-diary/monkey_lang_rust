@@ -14,6 +14,7 @@ pub struct Evaluator {
 }
 
 impl Evaluator {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             builtin: Builtin::new(),
@@ -423,25 +424,17 @@ impl Evaluator {
     }
 }
 
-impl Default for Evaluator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
     use std::rc::Rc;
 
-    use super::super::ast::*;
     use super::super::environment::Environment;
     use super::super::lexer::Lexer;
     use super::super::object::*;
     use super::super::parser::Parser;
     use super::super::token::Token;
-    use super::EvalResult;
-    use super::Evaluator;
+    use super::*;
 
     fn __eval(s: &str) -> EvalResult {
         let mut lexer = Lexer::new(s);

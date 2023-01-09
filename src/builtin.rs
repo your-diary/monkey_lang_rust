@@ -13,17 +13,12 @@ pub struct Builtin {
 }
 
 impl Builtin {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         initialize_builtin()
     }
     pub fn lookup_builtin_identifier(&self, s: &str) -> Option<Rc<dyn Object>> {
         self.m.get(s).cloned()
-    }
-}
-
-impl Default for Builtin {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
