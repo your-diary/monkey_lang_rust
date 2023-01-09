@@ -25,6 +25,28 @@ impl<T: Node> Base for T {
     }
 }
 
+macro_rules! impl_node {
+    ($t:ty) => {
+        impl Node for $t {
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+        }
+    };
+}
+
+macro_rules! impl_statement_node {
+    ($t:ty) => {
+        impl StatementNode for $t {}
+    };
+}
+
+macro_rules! impl_expression_node {
+    ($t:ty) => {
+        impl ExpressionNode for $t {}
+    };
+}
+
 /*-------------------------------------*/
 
 #[derive(Debug)]
@@ -32,11 +54,7 @@ pub struct RootNode {
     statements: Vec<Box<dyn StatementNode>>,
 }
 
-impl Node for RootNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
+impl_node!(RootNode);
 
 impl RootNode {
     pub fn new(statements: Vec<Box<dyn StatementNode>>) -> Self {
@@ -54,13 +72,8 @@ pub struct BlockExpressionNode {
     statements: Vec<Rc<dyn StatementNode>>,
 }
 
-impl Node for BlockExpressionNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for BlockExpressionNode {}
+impl_node!(BlockExpressionNode);
+impl_expression_node!(BlockExpressionNode);
 
 impl BlockExpressionNode {
     pub fn new(statements: Vec<Rc<dyn StatementNode>>) -> Self {
@@ -78,13 +91,8 @@ pub struct IdentifierNode {
     token: Token,
 }
 
-impl Node for IdentifierNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for IdentifierNode {}
+impl_node!(IdentifierNode);
+impl_expression_node!(IdentifierNode);
 
 impl IdentifierNode {
     pub fn new(token: Token) -> Self {
@@ -106,13 +114,8 @@ pub struct UnaryExpressionNode {
     expression: Box<dyn ExpressionNode>,
 }
 
-impl Node for UnaryExpressionNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for UnaryExpressionNode {}
+impl_node!(UnaryExpressionNode);
+impl_expression_node!(UnaryExpressionNode);
 
 impl UnaryExpressionNode {
     pub fn new(operator: Token, expression: Box<dyn ExpressionNode>) -> Self {
@@ -138,13 +141,8 @@ pub struct BinaryExpressionNode {
     right: Box<dyn ExpressionNode>,
 }
 
-impl Node for BinaryExpressionNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for BinaryExpressionNode {}
+impl_node!(BinaryExpressionNode);
+impl_expression_node!(BinaryExpressionNode);
 
 impl BinaryExpressionNode {
     pub fn new(
@@ -177,13 +175,8 @@ pub struct IndexExpressionNode {
     index: Box<dyn ExpressionNode>,
 }
 
-impl Node for IndexExpressionNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for IndexExpressionNode {}
+impl_node!(IndexExpressionNode);
+impl_expression_node!(IndexExpressionNode);
 
 impl IndexExpressionNode {
     pub fn new(array: Box<dyn ExpressionNode>, index: Box<dyn ExpressionNode>) -> Self {
@@ -205,13 +198,8 @@ pub struct CallExpressionNode {
     arguments: Vec<Box<dyn ExpressionNode>>,
 }
 
-impl Node for CallExpressionNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for CallExpressionNode {}
+impl_node!(CallExpressionNode);
+impl_expression_node!(CallExpressionNode);
 
 impl CallExpressionNode {
     pub fn new(function: Box<dyn ExpressionNode>, arguments: Vec<Box<dyn ExpressionNode>>) -> Self {
@@ -237,13 +225,8 @@ pub struct IfExpressionNode {
     else_value: Option<BlockExpressionNode>,
 }
 
-impl Node for IfExpressionNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for IfExpressionNode {}
+impl_node!(IfExpressionNode);
+impl_expression_node!(IfExpressionNode);
 
 impl IfExpressionNode {
     pub fn new(
@@ -275,13 +258,8 @@ pub struct IntegerLiteralNode {
     token: Token,
 }
 
-impl Node for IntegerLiteralNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for IntegerLiteralNode {}
+impl_node!(IntegerLiteralNode);
+impl_expression_node!(IntegerLiteralNode);
 
 impl IntegerLiteralNode {
     pub fn new(token: Token) -> Self {
@@ -302,13 +280,8 @@ pub struct FloatLiteralNode {
     token: Token,
 }
 
-impl Node for FloatLiteralNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for FloatLiteralNode {}
+impl_node!(FloatLiteralNode);
+impl_expression_node!(FloatLiteralNode);
 
 impl FloatLiteralNode {
     pub fn new(token: Token) -> Self {
@@ -329,13 +302,8 @@ pub struct BooleanLiteralNode {
     token: Token,
 }
 
-impl Node for BooleanLiteralNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for BooleanLiteralNode {}
+impl_node!(BooleanLiteralNode);
+impl_expression_node!(BooleanLiteralNode);
 
 impl BooleanLiteralNode {
     pub fn new(token: Token) -> Self {
@@ -357,13 +325,8 @@ pub struct CharacterLiteralNode {
     token: Token,
 }
 
-impl Node for CharacterLiteralNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for CharacterLiteralNode {}
+impl_node!(CharacterLiteralNode);
+impl_expression_node!(CharacterLiteralNode);
 
 impl CharacterLiteralNode {
     pub fn new(token: Token) -> Self {
@@ -384,13 +347,8 @@ pub struct StringLiteralNode {
     token: Token,
 }
 
-impl Node for StringLiteralNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for StringLiteralNode {}
+impl_node!(StringLiteralNode);
+impl_expression_node!(StringLiteralNode);
 
 impl StringLiteralNode {
     pub fn new(token: Token) -> Self {
@@ -411,13 +369,8 @@ pub struct ArrayLiteralNode {
     elements: Vec<Box<dyn ExpressionNode>>,
 }
 
-impl Node for ArrayLiteralNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for ArrayLiteralNode {}
+impl_node!(ArrayLiteralNode);
+impl_expression_node!(ArrayLiteralNode);
 
 impl ArrayLiteralNode {
     pub fn new(elements: Vec<Box<dyn ExpressionNode>>) -> Self {
@@ -436,13 +389,8 @@ pub struct FunctionLiteralNode {
     body: BlockExpressionNode,
 }
 
-impl Node for FunctionLiteralNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl ExpressionNode for FunctionLiteralNode {}
+impl_node!(FunctionLiteralNode);
+impl_expression_node!(FunctionLiteralNode);
 
 impl FunctionLiteralNode {
     pub fn new(parameters: Vec<IdentifierNode>, body: BlockExpressionNode) -> Self {
@@ -464,13 +412,8 @@ pub struct LetStatementNode {
     expression: Box<dyn ExpressionNode>,
 }
 
-impl Node for LetStatementNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl StatementNode for LetStatementNode {}
+impl_node!(LetStatementNode);
+impl_statement_node!(LetStatementNode);
 
 impl LetStatementNode {
     pub fn new(identifier: IdentifierNode, expression: Box<dyn ExpressionNode>) -> Self {
@@ -494,13 +437,8 @@ pub struct ReturnStatementNode {
     expression: Option<Box<dyn ExpressionNode>>,
 }
 
-impl Node for ReturnStatementNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl StatementNode for ReturnStatementNode {}
+impl_node!(ReturnStatementNode);
+impl_statement_node!(ReturnStatementNode);
 
 impl ReturnStatementNode {
     pub fn new(expression: Option<Box<dyn ExpressionNode>>) -> Self {
@@ -518,13 +456,8 @@ pub struct ExpressionStatementNode {
     expression: Box<dyn ExpressionNode>,
 }
 
-impl Node for ExpressionStatementNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl StatementNode for ExpressionStatementNode {}
+impl_node!(ExpressionStatementNode);
+impl_statement_node!(ExpressionStatementNode);
 
 impl ExpressionStatementNode {
     pub fn new(expression: Box<dyn ExpressionNode>) -> Self {
