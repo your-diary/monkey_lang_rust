@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::fmt::{self, Display};
 use std::mem;
+use std::rc::Rc;
 
 use super::ast::*;
 use super::token::Token;
@@ -147,7 +148,7 @@ impl Parser {
                 self.get_next().unwrap();
                 break;
             }
-            statements.push(self.parse_statement()?.into());
+            statements.push(self.parse_statement()?);
         }
         Ok(BlockExpressionNode::new(statements))
     }
@@ -492,8 +493,8 @@ impl Parser {
             return Err(ParseError::Error("function body missing".to_string()));
         }
         Ok(FunctionLiteralNode::new(
-            parameters,
-            self.parse_block_expression()?,
+            Rc::new(parameters),
+            Rc::new(self.parse_block_expression()?),
         ))
     }
 }

@@ -23,22 +23,22 @@ impl Environment {
             Some(e) => Some(e),
             None => match &self.outer {
                 None => None,
-                Some(e) => e.get(key),
+                Some(outer) => outer.get(key),
             },
         }
     }
 
-    pub fn set(&mut self, key: String, value: Rc<dyn Object>) {
-        self.m.insert(key, value);
+    pub fn set(&mut self, key: &str, value: Rc<dyn Object>) {
+        self.m.insert(key.to_string(), value);
     }
 
-    pub fn try_set(&mut self, key: String, value: Rc<dyn Object>) -> Result<(), String> {
-        match self.m.get(&key) {
+    pub fn try_set(&mut self, key: &str, value: Rc<dyn Object>) -> Result<(), String> {
+        match self.m.get(key) {
             None => {
-                self.m.insert(key, value);
+                self.m.insert(key.to_string(), value);
                 Ok(())
             }
-            Some(_) => Err(format!("`{}` is already defined", &key)),
+            Some(_) => Err(format!("`{}` is already defined", key)),
         }
     }
 

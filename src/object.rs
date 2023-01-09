@@ -2,6 +2,8 @@ use std::any::Any;
 use std::fmt::{self, Display};
 use std::rc::Rc;
 
+use itertools::Itertools;
+
 use super::ast::*;
 use super::environment::Environment;
 use super::evaluator::EvalResult;
@@ -12,20 +14,29 @@ pub trait Object: Display {
     fn as_any(&self) -> &dyn Any;
 }
 
+macro_rules! impl_object {
+    ($t:ty) => {
+        impl Object for $t {
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+        }
+    };
+}
+
 /*-------------------------------------*/
 
 pub struct Null {}
-impl Object for Null {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
+
+impl_object!(Null);
+
 impl Null {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {}
     }
 }
+
 impl Display for Null {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "null")
@@ -37,11 +48,9 @@ impl Display for Null {
 pub struct Int {
     value: i64,
 }
-impl Object for Int {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
+
+impl_object!(Int);
+
 impl Int {
     pub fn new(value: i64) -> Self {
         Self { value }
@@ -50,6 +59,7 @@ impl Int {
         self.value
     }
 }
+
 impl Display for Int {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
@@ -61,11 +71,9 @@ impl Display for Int {
 pub struct Float {
     value: f64,
 }
-impl Object for Float {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
+
+impl_object!(Float);
+
 impl Float {
     pub fn new(value: f64) -> Self {
         Self { value }
@@ -74,6 +82,7 @@ impl Float {
         self.value
     }
 }
+
 impl Display for Float {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
@@ -85,11 +94,9 @@ impl Display for Float {
 pub struct Bool {
     value: bool,
 }
-impl Object for Bool {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
+
+impl_object!(Bool);
+
 impl Bool {
     pub fn new(value: bool) -> Self {
         Self { value }
@@ -98,6 +105,7 @@ impl Bool {
         self.value
     }
 }
+
 impl Display for Bool {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
@@ -109,11 +117,9 @@ impl Display for Bool {
 pub struct Char {
     value: char,
 }
-impl Object for Char {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
+
+impl_object!(Char);
+
 impl Char {
     pub fn new(value: char) -> Self {
         Self { value }
@@ -122,6 +128,7 @@ impl Char {
         self.value
     }
 }
+
 impl Display for Char {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
@@ -131,34 +138,37 @@ impl Display for Char {
 /*-------------------------------------*/
 
 //implemented by `Str` and `Array`
+#[allow(clippy::len_without_is_empty)]
 pub trait Indexable: Object {
-    fn num_element(&self) -> usize;
+    fn len(&self) -> usize;
 }
+
+/*-------------------------------------*/
 
 #[derive(Clone)]
 pub struct Str {
     value: Rc<String>,
     length: usize, //for performance of `Indexable`
 }
-impl Object for Str {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-impl Indexable for Str {
-    fn num_element(&self) -> usize {
-        self.length
-    }
-}
+
+impl_object!(Str);
+
 impl Str {
     pub fn new(value: Rc<String>) -> Self {
         let length = value.chars().count();
         Self { value, length }
     }
-    pub fn value(&self) -> &Rc<String> {
+    pub fn value(&self) -> &str {
         &self.value
     }
 }
+
+impl Indexable for Str {
+    fn len(&self) -> usize {
+        self.length
+    }
+}
+
 impl Display for Str {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
@@ -171,16 +181,9 @@ impl Display for Str {
 pub struct Array {
     elements: Vec<Rc<dyn Object>>,
 }
-impl Object for Array {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-impl Indexable for Array {
-    fn num_element(&self) -> usize {
-        self.elements.len()
-    }
-}
+
+impl_object!(Array);
+
 impl Array {
     pub fn new(elements: Vec<Rc<dyn Object>>) -> Self {
         Self { elements }
@@ -189,17 +192,16 @@ impl Array {
         &self.elements
     }
 }
+
+impl Indexable for Array {
+    fn len(&self) -> usize {
+        self.elements.len()
+    }
+}
+
 impl Display for Array {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "[{}]",
-            self.elements
-                .iter()
-                .map(|e| e.to_string())
-                .collect::<Vec<String>>()
-                .join(", ")
-        )
+        write!(f, "[{}]", self.elements.iter().join(", "))
     }
 }
 
@@ -208,11 +210,9 @@ impl Display for Array {
 pub struct ReturnValue {
     value: Rc<dyn Object>,
 }
-impl Object for ReturnValue {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
+
+impl_object!(ReturnValue);
+
 impl ReturnValue {
     pub fn new(value: Rc<dyn Object>) -> Self {
         Self { value }
@@ -221,6 +221,7 @@ impl ReturnValue {
         &self.value
     }
 }
+
 impl Display for ReturnValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "return")
@@ -235,29 +236,21 @@ pub trait FunctionBase: Object {
     fn parameters(&self) -> &Vec<IdentifierNode>;
 }
 
+/*-------------------------------------*/
+
 #[derive(Clone)]
 pub struct Function {
-    parameters: Vec<IdentifierNode>,
-    body: BlockExpressionNode,
+    parameters: Rc<Vec<IdentifierNode>>,
+    body: Rc<BlockExpressionNode>,
     env: Environment,
 }
-impl Object for Function {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-impl FunctionBase for Function {
-    fn num_parameter(&self) -> usize {
-        self.parameters.len()
-    }
-    fn parameters(&self) -> &Vec<IdentifierNode> {
-        &self.parameters
-    }
-}
+
+impl_object!(Function);
+
 impl Function {
     pub fn new(
-        parameters: Vec<IdentifierNode>,
-        body: BlockExpressionNode,
+        parameters: Rc<Vec<IdentifierNode>>,
+        body: Rc<BlockExpressionNode>,
         env: Environment,
     ) -> Self {
         Self {
@@ -273,6 +266,16 @@ impl Function {
         &self.env
     }
 }
+
+impl FunctionBase for Function {
+    fn num_parameter(&self) -> usize {
+        self.parameters.len()
+    }
+    fn parameters(&self) -> &Vec<IdentifierNode> {
+        &self.parameters
+    }
+}
+
 impl Display for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "function")
@@ -283,14 +286,24 @@ impl Display for Function {
 
 #[derive(Clone)]
 pub struct BuiltinFunction {
-    parameters: Vec<IdentifierNode>,
+    parameters: Rc<Vec<IdentifierNode>>,
     f: Rc<dyn Fn(&Environment) -> EvalResult>,
 }
-impl Object for BuiltinFunction {
-    fn as_any(&self) -> &dyn Any {
-        self
+
+impl_object!(BuiltinFunction);
+
+impl BuiltinFunction {
+    pub fn new(
+        parameters: Rc<Vec<IdentifierNode>>,
+        f: Rc<dyn Fn(&Environment) -> EvalResult>,
+    ) -> Self {
+        Self { parameters, f }
+    }
+    pub fn call(&self, env: &Environment) -> EvalResult {
+        (self.f)(env)
     }
 }
+
 impl FunctionBase for BuiltinFunction {
     fn num_parameter(&self) -> usize {
         self.parameters.len()
@@ -299,14 +312,7 @@ impl FunctionBase for BuiltinFunction {
         &self.parameters
     }
 }
-impl BuiltinFunction {
-    pub fn new(parameters: Vec<IdentifierNode>, f: Rc<dyn Fn(&Environment) -> EvalResult>) -> Self {
-        Self { parameters, f }
-    }
-    pub fn call(&self, env: &Environment) -> EvalResult {
-        (self.f)(env)
-    }
-}
+
 impl Display for BuiltinFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "built-in function")

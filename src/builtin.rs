@@ -29,7 +29,7 @@ fn initialize_builtin() -> Builtin {
     /*-------------------------------------*/
 
     let print = BuiltinFunction::new(
-        vec![IdentifierNode::new(Token::Ident("o".to_string()))],
+        Rc::new(vec![IdentifierNode::new(Token::Ident("o".to_string()))]),
         Rc::new(|env: &Environment| -> EvalResult {
             println!("{}", env.get("o").unwrap());
             Ok(Rc::new(Null::new()))
@@ -37,7 +37,7 @@ fn initialize_builtin() -> Builtin {
     );
 
     let eprint = BuiltinFunction::new(
-        vec![IdentifierNode::new(Token::Ident("o".to_string()))],
+        Rc::new(vec![IdentifierNode::new(Token::Ident("o".to_string()))]),
         Rc::new(|env: &Environment| -> EvalResult {
             eprintln!("{}", env.get("o").unwrap());
             Ok(Rc::new(Null::new()))
@@ -47,7 +47,7 @@ fn initialize_builtin() -> Builtin {
     /*-------------------------------------*/
 
     let exit = BuiltinFunction::new(
-        vec![IdentifierNode::new(Token::Ident("i".to_string()))],
+        Rc::new(vec![IdentifierNode::new(Token::Ident("i".to_string()))]),
         Rc::new(|env: &Environment| -> EvalResult {
             let i = env.get("i").unwrap();
             if let Some(i) = i.as_any().downcast_ref::<Int>() {
@@ -60,7 +60,7 @@ fn initialize_builtin() -> Builtin {
     /*-------------------------------------*/
 
     let len = BuiltinFunction::new(
-        vec![IdentifierNode::new(Token::Ident("l".to_string()))],
+        Rc::new(vec![IdentifierNode::new(Token::Ident("l".to_string()))]),
         Rc::new(|env: &Environment| -> EvalResult {
             let l = env.get("l").unwrap();
             if let Some(s) = l.as_any().downcast_ref::<Str>() {
@@ -76,10 +76,10 @@ fn initialize_builtin() -> Builtin {
     /*-------------------------------------*/
 
     let append = BuiltinFunction::new(
-        vec![
+        Rc::new(vec![
             IdentifierNode::new(Token::Ident("l".to_string())),
             IdentifierNode::new(Token::Ident("v".to_string())),
-        ],
+        ]),
         Rc::new(|env: &Environment| -> EvalResult {
             let l = env.get("l").unwrap();
             if let Some(a) = l.as_any().downcast_ref::<Array>() {
@@ -95,7 +95,7 @@ fn initialize_builtin() -> Builtin {
     //cast functions
 
     let bool_ = BuiltinFunction::new(
-        vec![IdentifierNode::new(Token::Ident("v".to_string()))],
+        Rc::new(vec![IdentifierNode::new(Token::Ident("v".to_string()))]),
         Rc::new(|env: &Environment| -> EvalResult {
             let v = env.get("v").unwrap();
             if let Some(v) = v.as_any().downcast_ref::<Int>() {
@@ -115,7 +115,7 @@ fn initialize_builtin() -> Builtin {
     );
 
     let str_ = BuiltinFunction::new(
-        vec![IdentifierNode::new(Token::Ident("v".to_string()))],
+        Rc::new(vec![IdentifierNode::new(Token::Ident("v".to_string()))]),
         Rc::new(|env: &Environment| -> EvalResult {
             let v = env.get("v").unwrap();
             if let Some(c) = v.as_any().downcast_ref::<Char>() {
@@ -126,7 +126,7 @@ fn initialize_builtin() -> Builtin {
     );
 
     let int_ = BuiltinFunction::new(
-        vec![IdentifierNode::new(Token::Ident("v".to_string()))],
+        Rc::new(vec![IdentifierNode::new(Token::Ident("v".to_string()))]),
         Rc::new(|env: &Environment| -> EvalResult {
             let v = env.get("v").unwrap();
             if let Some(v) = v.as_any().downcast_ref::<Float>() {
@@ -137,7 +137,7 @@ fn initialize_builtin() -> Builtin {
     );
 
     let float_ = BuiltinFunction::new(
-        vec![IdentifierNode::new(Token::Ident("v".to_string()))],
+        Rc::new(vec![IdentifierNode::new(Token::Ident("v".to_string()))]),
         Rc::new(|env: &Environment| -> EvalResult {
             let v = env.get("v").unwrap();
             if let Some(v) = v.as_any().downcast_ref::<Int>() {

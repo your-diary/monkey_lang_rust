@@ -17,19 +17,7 @@ pub fn unary_invert(o: &dyn Object) -> EvalResult {
     if let Some(o) = o.as_any().downcast_ref::<Bool>() {
         return Ok(Rc::new(Bool::new(!o.value())));
     }
-    if let Some(o) = o.as_any().downcast_ref::<Int>() {
-        return Ok(Rc::new(Bool::new(o.value() == 0)));
-    }
-    if let Some(o) = o.as_any().downcast_ref::<Float>() {
-        return Ok(Rc::new(Bool::new(o.value() == 0.0)));
-    }
-    if let Some(o) = o.as_any().downcast_ref::<Str>() {
-        return Ok(Rc::new(Bool::new(o.value().is_empty())));
-    }
-    if let Some(o) = o.as_any().downcast_ref::<Array>() {
-        return Ok(Rc::new(Bool::new(o.elements().is_empty())));
-    }
-    Err("operand of unary `!` is not a number, a boolean, a string nor an array".to_string())
+    Err("operand of unary `!` is not a boolean".to_string())
 }
 
 fn try_cast<'a, T1: Object + 'static, T2: Object + 'static>(
@@ -52,9 +40,11 @@ pub fn binary_plus(left: &dyn Object, right: &dyn Object) -> EvalResult {
         return Ok(Rc::new(Float::new(t.0.value() + t.1.value())));
     }
     if let Some(t) = try_cast::<Str, Str>(left, right) {
-        return Ok(Rc::new(Str::new(Rc::new(
-            t.0.value().to_string() + t.1.value(),
-        ))));
+        return Ok(Rc::new(Str::new(Rc::new(format!(
+            "{}{}",
+            t.0.value(),
+            t.1.value()
+        )))));
     }
     if let Some(t) = try_cast::<Array, Array>(left, right) {
         let mut elements = t.0.elements().clone();
@@ -105,13 +95,13 @@ pub fn binary_slash(left: &dyn Object, right: &dyn Object) -> EvalResult {
 pub fn binary_percent(left: &dyn Object, right: &dyn Object) -> EvalResult {
     if let Some(t) = try_cast::<Int, Int>(left, right) {
         if (t.1.value() == 0) {
-            return Err("zero division occurs in `%`".to_string());
+            return Err("zero division in `%`".to_string());
         }
         return Ok(Rc::new(Int::new(t.0.value() % t.1.value())));
     }
     if let Some(t) = try_cast::<Float, Float>(left, right) {
         if (t.1.value() == 0.0) {
-            return Err("zero division occurs in `%`".to_string());
+            return Err("zero division in `%`".to_string());
         }
         return Ok(Rc::new(Float::new(t.0.value() % t.1.value())));
     }

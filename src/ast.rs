@@ -67,26 +67,26 @@ impl RootNode {
 
 /*-------------------------------------*/
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct BlockExpressionNode {
-    statements: Vec<Rc<dyn StatementNode>>,
+    statements: Vec<Box<dyn StatementNode>>,
 }
 
 impl_node!(BlockExpressionNode);
 impl_expression_node!(BlockExpressionNode);
 
 impl BlockExpressionNode {
-    pub fn new(statements: Vec<Rc<dyn StatementNode>>) -> Self {
+    pub fn new(statements: Vec<Box<dyn StatementNode>>) -> Self {
         BlockExpressionNode { statements }
     }
-    pub fn statements(&self) -> &Vec<Rc<dyn StatementNode>> {
+    pub fn statements(&self) -> &Vec<Box<dyn StatementNode>> {
         &self.statements
     }
 }
 
 /*-------------------------------------*/
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct IdentifierNode {
     token: Token,
 }
@@ -385,21 +385,21 @@ impl ArrayLiteralNode {
 
 #[derive(Debug)]
 pub struct FunctionLiteralNode {
-    parameters: Vec<IdentifierNode>,
-    body: BlockExpressionNode,
+    parameters: Rc<Vec<IdentifierNode>>,
+    body: Rc<BlockExpressionNode>,
 }
 
 impl_node!(FunctionLiteralNode);
 impl_expression_node!(FunctionLiteralNode);
 
 impl FunctionLiteralNode {
-    pub fn new(parameters: Vec<IdentifierNode>, body: BlockExpressionNode) -> Self {
+    pub fn new(parameters: Rc<Vec<IdentifierNode>>, body: Rc<BlockExpressionNode>) -> Self {
         FunctionLiteralNode { parameters, body }
     }
-    pub fn parameters(&self) -> &Vec<IdentifierNode> {
+    pub fn parameters(&self) -> &Rc<Vec<IdentifierNode>> {
         &self.parameters
     }
-    pub fn body(&self) -> &BlockExpressionNode {
+    pub fn body(&self) -> &Rc<BlockExpressionNode> {
         &self.body
     }
 }

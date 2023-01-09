@@ -94,7 +94,7 @@ impl Evaluator {
             return self.eval_identifier_node(n, env);
         }
 
-        Err("not yet implemented or a bug of interpreter".to_string())
+        unreachable!();
     }
 
     fn eval_root_node(&self, n: &RootNode, env: &mut Environment) -> EvalResult {
@@ -148,7 +148,7 @@ impl Evaluator {
             ));
         }
         let o = self.eval(n.expression().as_node(), env)?;
-        env.try_set(n.identifier().get_name().to_string(), o)?;
+        env.try_set(n.identifier().get_name(), o)?;
         Ok(Rc::new(Null::new()))
     }
 
@@ -180,7 +180,7 @@ impl Evaluator {
         match n.operator() {
             Token::Minus => operator::unary_minus(o.as_ref()),
             Token::Invert => operator::unary_invert(o.as_ref()),
-            t => Err(format!("unknown unary operator: `{:?}`", t)),
+            _ => unreachable!(),
         }
     }
 
@@ -206,7 +206,7 @@ impl Evaluator {
             Token::GtEq => operator::binary_gteq(left.as_ref(), right.as_ref()),
             Token::And => operator::binary_and(left.as_ref(), right.as_ref()),
             Token::Or => operator::binary_or(left.as_ref(), right.as_ref()),
-            t => Err(format!("unknown binary operator: `{:?}`", t)),
+            _ => unreachable!(),
         }
     }
 
@@ -230,6 +230,7 @@ impl Evaluator {
                 }
                 unreachable!();
             };
+
             if let Some(a) = n.array().as_any().downcast_ref::<StringLiteralNode>() {
                 let a = self.eval(a, env)?;
                 if let Some(a) = a.as_any().downcast_ref::<Str>() {
@@ -237,6 +238,7 @@ impl Evaluator {
                 }
                 unreachable!();
             };
+
             if let Some(identifier) = n.array().as_any().downcast_ref::<IdentifierNode>() {
                 let a = self.eval_identifier_node(identifier, env)?;
                 if let Some(a) = a.as_any().downcast_ref::<Array>() {
@@ -250,21 +252,21 @@ impl Evaluator {
                     identifier.get_name()
                 ));
             }
+
             return Err(
                 "only identifier, array literal or string literal can be indexed".to_string(),
             );
         };
 
         let index = self.eval(n.index().as_node(), env)?;
-        let index = index.as_any().downcast_ref::<Int>();
-        if (index.is_none()) {
-            return Err("non-integer array index found".to_string());
-        }
-        let index = index.unwrap();
+        let index = match index.as_any().downcast_ref::<Int>() {
+            Some(i) => i,
+            None => return Err("non-integer array index found".to_string()),
+        };
         if (index.value() < 0) {
             return Err("negative array index not allowed".to_string());
         }
-        if ((index.value() as usize) >= array.num_element()) {
+        if ((index.value() as usize) >= array.len()) {
             return Err("array index out of bounds".to_string());
         }
 
@@ -296,6 +298,7 @@ impl Evaluator {
                 }
                 unreachable!();
             };
+
             if let Some(identifier) = n.function().as_any().downcast_ref::<IdentifierNode>() {
                 let f = self.eval_identifier_node(identifier, env)?;
                 if let Some(f) = f.as_any().downcast_ref::<Function>() {
@@ -306,6 +309,7 @@ impl Evaluator {
                 }
                 return Err(format!("`{}` is not a function", identifier.get_name()));
             }
+
             return Err("only identifier or function literal can be called".to_string());
         };
 
@@ -325,7 +329,7 @@ impl Evaluator {
         let parameters = function.parameters();
         for (i, param) in parameters.iter().enumerate() {
             function_env.set(
-                param.get_name().to_string(),
+                param.get_name(),
                 self.eval(n.arguments()[i].as_node(), env)?,
             )
         }
@@ -394,7 +398,7 @@ impl Evaluator {
     }
 
     fn eval_array_literal_node(&self, n: &ArrayLiteralNode, env: &mut Environment) -> EvalResult {
-        let mut v = Vec::new();
+        let mut v = vec![];
         for e in n.elements() {
             v.push(self.eval(e.as_node(), env)?);
         }
@@ -509,7 +513,7 @@ mod tests {
         let o = read_and_eval(s);
         let o = o.as_any().downcast_ref::<Str>();
         assert!(o.is_some());
-        assert_eq!(v, o.unwrap().value().as_ref());
+        assert_eq!(v, o.unwrap().value());
     }
 
     fn assert_array(s: &str, v: &Vec<i64>) {
@@ -543,16 +547,6 @@ mod tests {
         assert_boolean(r#" !false "#, true);
         assert_boolean(r#" !!true "#, true);
         assert_boolean(r#" !!false "#, false);
-        assert_boolean(r#" !0 "#, true);
-        assert_boolean(r#" !!0 "#, false);
-        assert_boolean(r#" !1 "#, false);
-        assert_boolean(r#" !!1 "#, true);
-        assert_boolean(r#" !0.0 "#, true);
-        assert_boolean(r#" !3.14 "#, false);
-        assert_boolean(r#" !"" "#, true);
-        assert_boolean(r#" !"あ" "#, false);
-        assert_boolean(r#" ![] "#, true);
-        assert_boolean(r#" ![1, 2] "#, false);
 
         //unary minus
         assert_integer(r#" -5 "#, -5);
