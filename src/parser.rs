@@ -1731,6 +1731,12 @@ mod tests {
         test_error(input, expected);
 
         let input = r#"
+            fn (1, 2, 3) { 1 }
+        "#;
+        let expected = "expected identifier but found `Int(1)` in function parameter list";
+        test_error(input, expected);
+
+        let input = r#"
             fn a, b, c) { 1 }
         "#;
         let expected = "`(` missing in function parameter list";
