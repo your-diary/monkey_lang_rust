@@ -18,7 +18,7 @@ impl Lexer {
 
     fn read_identifier(&mut self) -> String {
         let mut l = vec![];
-        while (!self.queue.is_empty() && util::is_identifier(self.queue[0])) {
+        while !self.queue.is_empty() && util::is_identifier(self.queue[0]) {
             l.push(self.queue.pop_front().unwrap());
         }
         l.into_iter().collect()
@@ -26,12 +26,12 @@ impl Lexer {
 
     fn read_number(&mut self) -> LexerResult<String> {
         let mut l = vec![];
-        while (!self.queue.is_empty() && util::is_digit(self.queue[0])) {
+        while !self.queue.is_empty() && util::is_digit(self.queue[0]) {
             l.push(self.queue.pop_front().unwrap());
         }
-        if (l.iter().filter(|c| (**c == '.')).count() >= 2) {
+        if l.iter().filter(|c| (**c == '.')).count() >= 2 {
             return Err("two or more dots found in a number literal".to_string());
-        } else if ((l.len() == 1) && (l[0] == '.')) {
+        } else if (l.len() == 1) && (l[0] == '.') {
             return Err("isolated `.` found".to_string());
         }
         Ok(l.into_iter().collect())
@@ -41,17 +41,17 @@ impl Lexer {
         let mut l = vec![self.queue.pop_front().unwrap()];
         assert_eq!('"', l[0]);
         loop {
-            if (self.queue.is_empty()) {
+            if self.queue.is_empty() {
                 return Err("unexpected end of a string literal".to_string());
             }
             let next = self.queue.pop_front().unwrap();
-            if (next == '"') {
+            if next == '"' {
                 l.push(next);
                 break;
             }
             let c = match next {
                 '\\' => {
-                    if (self.queue.is_empty()) {
+                    if self.queue.is_empty() {
                         return Err("unexpected end of a string literal".to_string());
                     }
                     match util::parse_escaped_character(self.queue.pop_front().unwrap()) {
@@ -68,14 +68,14 @@ impl Lexer {
 
     fn read_character(&mut self) -> LexerResult<String> {
         assert_eq!('\'', self.queue.pop_front().unwrap());
-        if (self.queue.is_empty()) {
+        if self.queue.is_empty() {
             return Err("unexpected end of a character literal".to_string());
-        } else if (self.queue[0] == '\'') {
+        } else if self.queue[0] == '\'' {
             return Err("character literal is empty".to_string());
         }
         let ret = match self.queue.pop_front().unwrap() {
             '\\' => {
-                if (self.queue.is_empty()) {
+                if self.queue.is_empty() {
                     return Err("unexpected end of a character literal".to_string());
                 }
                 format!(
@@ -88,9 +88,9 @@ impl Lexer {
             }
             c => format!("'{}'", c),
         };
-        if (self.queue.is_empty()) {
+        if self.queue.is_empty() {
             return Err("unexpected end of a character literal".to_string());
-        } else if (self.queue[0] != '\'') {
+        } else if self.queue[0] != '\'' {
             return Err("character literal can contain only one character".to_string());
         }
         self.queue.pop_front().unwrap();
@@ -99,10 +99,10 @@ impl Lexer {
 
     pub fn get_next_token(&mut self) -> LexerResult<Token> {
         //eats whitespace
-        while (!self.queue.is_empty() && self.queue[0].is_ascii_whitespace()) {
+        while !self.queue.is_empty() && self.queue[0].is_ascii_whitespace() {
             self.queue.pop_front().unwrap();
         }
-        if (self.queue.is_empty()) {
+        if self.queue.is_empty() {
             return Ok(Token::Eof);
         }
         let sequence: String = match self.queue[0] {
@@ -124,11 +124,11 @@ impl Lexer {
                 let cur = self.queue.pop_front().unwrap();
                 let ret = match c {
                     '=' | '!' | '*' | '>' | '<' => {
-                        if (self.queue.is_empty()) {
+                        if self.queue.is_empty() {
                             c.to_string()
                         } else {
                             let s = m[&cur];
-                            if (self.queue[0] == s.chars().nth(1).unwrap()) {
+                            if self.queue[0] == s.chars().nth(1).unwrap() {
                                 self.queue.pop_front().unwrap();
                                 s.to_string()
                             } else {
@@ -138,11 +138,11 @@ impl Lexer {
                     }
                     '&' | '|' => {
                         let s = m[&cur];
-                        if (self.queue.is_empty()) {
+                        if self.queue.is_empty() {
                             return Err(format!("`{}` expected but not found", s));
                         }
                         let next = self.queue.pop_front().unwrap();
-                        if (next != s.chars().nth(1).unwrap()) {
+                        if next != s.chars().nth(1).unwrap() {
                             return Err(format!("`{}` expected but not found", s));
                         }
                         s.to_string()

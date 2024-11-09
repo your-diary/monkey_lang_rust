@@ -78,13 +78,13 @@ pub fn binary_asterisk(left: &dyn Object, right: &dyn Object) -> EvalResult {
 
 pub fn binary_slash(left: &dyn Object, right: &dyn Object) -> EvalResult {
     if let Some(t) = try_cast::<Int, Int>(left, right) {
-        if (t.0.value() == 0) {
+        if t.0.value() == 0 {
             return Err("zero division".to_string());
         }
         return Ok(Rc::new(Int::new(t.0.value() / t.1.value())));
     }
     if let Some(t) = try_cast::<Float, Float>(left, right) {
-        if (t.1.value() == 0.0) {
+        if t.1.value() == 0.0 {
             return Err("zero division".to_string());
         }
         return Ok(Rc::new(Float::new(t.0.value() / t.1.value())));
@@ -94,13 +94,13 @@ pub fn binary_slash(left: &dyn Object, right: &dyn Object) -> EvalResult {
 
 pub fn binary_percent(left: &dyn Object, right: &dyn Object) -> EvalResult {
     if let Some(t) = try_cast::<Int, Int>(left, right) {
-        if (t.1.value() == 0) {
+        if t.1.value() == 0 {
             return Err("zero division in `%`".to_string());
         }
         return Ok(Rc::new(Int::new(t.0.value() % t.1.value())));
     }
     if let Some(t) = try_cast::<Float, Float>(left, right) {
-        if (t.1.value() == 0.0) {
+        if t.1.value() == 0.0 {
             return Err("zero division in `%`".to_string());
         }
         return Ok(Rc::new(Float::new(t.0.value() % t.1.value())));
@@ -110,7 +110,7 @@ pub fn binary_percent(left: &dyn Object, right: &dyn Object) -> EvalResult {
 
 pub fn binary_power(left: &dyn Object, right: &dyn Object) -> EvalResult {
     if let Some(t) = try_cast::<Int, Int>(left, right) {
-        if (t.1.value() < 0) {
+        if t.1.value() < 0 {
             return Err("negative exponent in <int>**<int> operation".to_string());
         }
         return Ok(Rc::new(Int::new(t.0.value().pow(t.1.value() as u32))));

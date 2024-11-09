@@ -83,7 +83,7 @@ pub fn lookup_token(sequence: &str) -> Result<Token, String> {
             Token::String(l.into_iter().skip(1).dropping_back(1).collect())
         }
         _ if util::is_digit(first_char) => {
-            if (sequence.contains('.')) {
+            if sequence.contains('.') {
                 match sequence.parse::<f64>() {
                     Err(e) => return Err(e.to_string()),
                     Ok(i) => Token::Float(i),

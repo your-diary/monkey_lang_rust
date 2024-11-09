@@ -137,10 +137,10 @@ impl Evaluator {
     }
 
     fn eval_let_statement_node(&self, n: &LetStatementNode, env: &mut Environment) -> EvalResult {
-        if (self
+        if self
             .builtin
             .lookup_builtin_identifier(n.identifier().get_name())
-            .is_some())
+            .is_some()
         {
             return Err(format!(
                 "`{}` is a built-in identifier",
@@ -263,10 +263,10 @@ impl Evaluator {
             Some(i) => i,
             None => return Err("non-integer array index found".to_string()),
         };
-        if (index.value() < 0) {
+        if index.value() < 0 {
             return Err("negative array index not allowed".to_string());
         }
-        if ((index.value() as usize) >= array.len()) {
+        if (index.value() as usize) >= array.len() {
             return Err("array index out of bounds".to_string());
         }
 
@@ -313,7 +313,7 @@ impl Evaluator {
             return Err("only identifier or function literal can be called".to_string());
         };
 
-        if (n.arguments().len() != function.num_parameter()) {
+        if n.arguments().len() != function.num_parameter() {
             return Err("argument number mismatch".to_string());
         }
 
@@ -362,9 +362,9 @@ impl Evaluator {
         match condition.as_any().downcast_ref::<Bool>() {
             None => Err("if condition is not a boolean".to_string()),
             Some(condition) => {
-                if (condition.value()) {
+                if condition.value() {
                     self.eval(n.if_value().as_node(), env)
-                } else if (n.else_value().is_some()) {
+                } else if n.else_value().is_some() {
                     self.eval(n.else_value().as_ref().unwrap().as_node(), env)
                 } else {
                     Ok(Rc::new(Null::new()))
@@ -445,7 +445,7 @@ mod tests {
         let mut v = Vec::new();
         loop {
             let token = lexer.get_next_token().unwrap();
-            if (token == Token::Eof) {
+            if token == Token::Eof {
                 break;
             }
             v.push(token);

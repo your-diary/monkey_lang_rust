@@ -15,7 +15,7 @@ fn get_tokens(s: &str) -> LexerResult<Vec<Token>> {
     let mut v = vec![];
     loop {
         let token = lexer.get_next_token()?;
-        if (token == Token::Eof) {
+        if token == Token::Eof {
             break;
         }
         v.push(token);
@@ -42,7 +42,7 @@ pub fn start(history_file: &str) -> rustyline::Result<()> {
         match rl.readline("\n>> ") {
             Err(_) => break,
             Ok(line) => {
-                if (line.trim().is_empty()) {
+                if line.trim().is_empty() {
                     continue;
                 }
 
