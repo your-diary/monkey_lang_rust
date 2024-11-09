@@ -25,7 +25,7 @@ fn get_tokens(s: &str) -> LexerResult<Vec<Token>> {
 }
 
 pub fn start(history_file: &str) -> rustyline::Result<()> {
-    let mut rl = rustyline::Editor::<()>::with_config(
+    let mut rl = rustyline::Editor::<(), _>::with_config(
         rustyline::Config::builder()
             .edit_mode(rustyline::EditMode::Vi)
             .auto_add_history(true)
